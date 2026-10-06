@@ -1,6 +1,13 @@
 GDKP Credit Changelog
 =====================
 
+0.1.4-beta (development; unreleased)
+------------------------------------
+- Paginate the Raid roster for full 40-player raids and larger tracked rosters.
+- Keep officer controls visible, align columns, and show full names on hover.
+- Preserve raid selection across pages and clear stale selection between raids.
+- Raid rules, awards, attendance, readiness, and synchronization are unchanged.
+
 0.1.0-beta
 ----------
 - First public beta under the GDKP Credit name.

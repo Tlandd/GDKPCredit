@@ -117,17 +117,41 @@ function A:BuildRaidTab()
   local pot=makeEdit(p,110,24); pot:SetPoint("LEFT",potLabel,"RIGHT",10,0); pot:SetNumeric(true); p.pot=pot
   local finish=makeButton(p,"End Raid + Award DKP",160,24); finish:SetPoint("LEFT",pot,"RIGHT",10,0); finish:SetScript("OnClick",function() A:EndRaid(pot:GetText()) end)
 
-  local hdr=makeText(p); hdr:SetPoint("TOPLEFT",8,-112); hdr:SetText("Player                 Character              Att   WB     Cons   DKP")
-  p.rows={}
-  for i=1,13 do
-    local row=CreateFrame("Button",nil,p); row:SetSize(690,23); row:SetPoint("TOPLEFT",8,-136-(i-1)*25)
-    local txt=makeText(row); txt:SetAllPoints(); row.text=txt; p.rows[i]=row
+  -- Nine rows leave room for navigation and always-visible officer controls.
+  local columns={{"Player",0,200},{"Character",204,200},{"Att",408,54},{"WB",466,80},{"Cons",550,90},{"DKP",644,46}}
+  for _,col in ipairs(columns) do
+    local hdr=makeText(p); hdr:SetPoint("TOPLEFT",8+col[2],-112); hdr:SetWidth(col[3]); hdr:SetText(col[1])
+  end
+  p.rows={}; p.page=1
+  for i=1,9 do
+    local row=CreateFrame("Button",nil,p); row:SetSize(690,23); row:SetPoint("TOPLEFT",8,-136-(i-1)*24)
+    row.cells={}
+    for j,col in ipairs(columns) do
+      local txt=makeText(row); txt:SetPoint("LEFT",col[2],0); txt:SetSize(col[3],23)
+      txt:SetWordWrap(false); row.cells[j]=txt
+    end
+    row:SetHighlightTexture("Interface/QuestFrame/UI-QuestTitleHighlight")
+    p.rows[i]=row
     row:SetScript("OnClick",function(self)
+      if not self.player then return end
       p.selected=self.player
       A:RefreshRaidTab()
     end)
+    row:SetScript("OnEnter",function(self)
+      if not self.player then return end
+      GameTooltip:SetOwner(self,"ANCHOR_RIGHT")
+      GameTooltip:SetText(self.player)
+      GameTooltip:AddLine(self.character or "",1,1,1)
+      GameTooltip:Show()
+    end)
+    row:SetScript("OnLeave",function() GameTooltip:Hide() end)
   end
-  local selected=makeText(p); selected:SetPoint("BOTTOMLEFT",8,42); selected:SetText("Selected: none"); p.selectedText=selected
+  local prev=makeButton(p,"Prev",70,22); prev:SetPoint("BOTTOMLEFT",8,64); p.prev=prev
+  local nextb=makeButton(p,"Next",70,22); nextb:SetPoint("LEFT",prev,"RIGHT",6,0); p.next=nextb
+  local pageText=makeText(p); pageText:SetPoint("LEFT",nextb,"RIGHT",12,0); p.pageText=pageText
+  prev:SetScript("OnClick",function() p.page=p.page-1; A:RefreshRaidTab() end)
+  nextb:SetScript("OnClick",function() p.page=p.page+1; A:RefreshRaidTab() end)
+  local selected=makeText(p); selected:SetPoint("BOTTOMLEFT",8,42); selected:SetWidth(690); selected:SetWordWrap(false); selected:SetText("Selected: none"); p.selectedText=selected
   local wb=makeButton(p,"Pass WB",80,22); wb:SetPoint("BOTTOMLEFT",8,10); wb:SetScript("OnClick",function() if p.selected then A:SetRaidPass(p.selected,"wb") end end)
   local con=makeButton(p,"Pass Consumes",110,22); con:SetPoint("LEFT",wb,"RIGHT",6,0); con:SetScript("OnClick",function() if p.selected then A:SetRaidPass(p.selected,"consumes") end end)
   local att=makeButton(p,"Pass Attendance",120,22); att:SetPoint("LEFT",con,"RIGHT",6,0); att:SetScript("OnClick",function() if p.selected then A:SetRaidPass(p.selected,"attendance") end end)
@@ -238,18 +262,31 @@ function A:RefreshRaidTab()
   p.lock:SetText(r and r.locked and "Unlock Check" or "Lock Check")
   local names={}; if r then for n in pairs(r.players or {}) do table.insert(names,n) end end
   table.sort(names,function(a,b) return string.lower(a)<string.lower(b) end)
+  local raidID=r and r.id
+  if p.raidID~=raidID then p.page=1; p.selected=nil; p.raidID=raidID end
+  if p.selected and (not r or not r.players or not r.players[p.selected]) then p.selected=nil end
+  local pages=math.max(1,math.ceil(#names/#p.rows))
+  p.page=math.max(1,math.min(p.page or 1,pages))
+  local first=(p.page-1)*#p.rows+1
+  p.prev:SetEnabled(p.page>1); p.next:SetEnabled(p.page<pages)
+  p.pageText:SetText(string.format("Page %d / %d — %d raiders",p.page,pages,#names))
   for i,row in ipairs(p.rows) do
-    local n=names[i]
-    row.player=n
+    local n=names[first+i-1]
+    row.player=n; row.character=n and r.players[n].char or nil
+    row:SetEnabled(n~=nil); row:SetShown(n~=nil)
     if n then
       local e=r.players[n]
       local att=e.attendanceOverride and "YES" or (e.attendanceBroken and "NO" or "...")
       local wb=e.wb and "YES" or "NO"
       local con=e.consumes and "YES" or "NO"
       local d=(e.attendanceOverride and (self.db.settings.attendanceDKP or 4) or 0)+(e.wb and (self.db.settings.wbDKP or 3) or 0)+(e.consumes and (self.db.settings.consumeDKP or 3) or 0)
-      row.text:SetText(string.format("%-22s %-22s %-5s %-6s %-6s %2d",n,e.char or "",att,wb.."("..(e.wbCount or 0)..")",con.."("..(e.consumeCount or 0)..")",d))
-      if p.selected==n then row.text:SetText("> "..row.text:GetText()) end
-    else row.text:SetText("") end
+      local values={n,e.char or "",att,wb.."("..(e.wbCount or 0)..")",con.."("..(e.consumeCount or 0)..")",tostring(d)}
+      for j,cell in ipairs(row.cells) do
+        cell:SetText(values[j]); cell:SetTextColor(1,p.selected==n and 1 or 0.82,p.selected==n and 1 or 0)
+      end
+    else
+      for _,cell in ipairs(row.cells) do cell:SetText("") end
+    end
   end
   p.selectedText:SetText("Selected: "..tostring(p.selected or "none"))
 end

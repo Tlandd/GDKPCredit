@@ -1,4 +1,4 @@
-GDKP Credit — v0.1.0 Beta
+GDKP Credit — v0.1.4 Beta
 =========================
 
 GDKP Credit adds a persistent DKP and gold-backed guild-credit layer on top of a normal GDKP raid system.

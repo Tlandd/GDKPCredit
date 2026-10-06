@@ -3,7 +3,7 @@ GDKPCredit = GDKPCredit or {}
 local A = GDKPCredit
 
 A.PREFIX = "GDKPCredit"
-A.VERSION = "0.1.0-beta"
+A.VERSION = "0.1.4-beta"
 A.TABS = {"My DKP", "Guild DKP", "Raid", "History", "Admin"}
 
 local function deepcopy(src)
