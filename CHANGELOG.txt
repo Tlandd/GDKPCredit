@@ -1,6 +1,14 @@
 GDKP Credit Changelog
 =====================
 
+0.1.5-beta (development; unreleased)
+------------------------------------
+- Detect officers using Classic Era guild permissions instead of hard-coded top-two ranks.
+- Preserve sender realms and validate remote officers against guild roster rank permissions.
+- Fail closed on unavailable permission data; retain rank fallback only for absent APIs.
+- Keep Guild Master admin access and add /gdkpc officer diagnostics.
+- Add Lua 5.1 permission and addon-message regression tests.
+
 0.1.4-beta (development; unreleased)
 ------------------------------------
 - Paginate the Raid roster for full 40-player raids and larger tracked rosters.

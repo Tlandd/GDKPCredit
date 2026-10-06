@@ -102,7 +102,8 @@ end
 
 function A:OnAddonMessage(prefix,msg,channel,sender)
   if prefix~=self.PREFIX then return end
-  sender=self:ShortName(sender)
+  -- Preserve the realm for all permission checks and snapshot assembly.
+  if type(sender) ~= "string" or sender == "" then return end
   local kind=msg:match("^([^|]+)")
   if kind=="Q" then
     if self:IsOfficer() then self:SendSnapshot(sender) end

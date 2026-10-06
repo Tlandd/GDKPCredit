@@ -3,7 +3,7 @@ GDKPCredit = GDKPCredit or {}
 local A = GDKPCredit
 
 A.PREFIX = "GDKPCredit"
-A.VERSION = "0.1.4-beta"
+A.VERSION = "0.1.5-beta"
 A.TABS = {"My DKP", "Guild DKP", "Raid", "History", "Admin"}
 
 local function deepcopy(src)
@@ -171,35 +171,83 @@ function A:AdjustDKP(player, delta, note)
   return true
 end
 
+-- Permission identities retain realms; DKP aliases deliberately use ShortName elsewhere.
+function A:GuildIdentity(name)
+  if type(name) ~= "string" or name == "" then return nil end
+  local character, realm = name:match("^([^%-]+)%-(.+)$")
+  if not character then
+    character = name
+    realm = (GetNormalizedRealmName and GetNormalizedRealmName()) or
+      (GetRealmName and GetRealmName())
+  end
+  if not realm or realm == "" then return nil end
+  realm = realm:gsub("%s", "")
+  return string.lower(character .. "-" .. realm)
+end
+
+function A:IsLocalGuildPlayer(name)
+  local player, realm
+  if UnitFullName then player, realm = UnitFullName("player") end
+  player = player or UnitName("player")
+  local identity = self:GuildIdentity(realm and realm ~= "" and (player .. "-" .. realm) or player)
+  return identity ~= nil and identity == self:GuildIdentity(name)
+end
+
 function A:GuildRankIndex(name)
-  local short = self:Norm(name)
-  if short == "" then return nil end
-  if not IsInGuild() then return nil end
+  local identity = self:GuildIdentity(name)
+  if not identity or not IsInGuild() then return nil end
   if C_GuildInfo and C_GuildInfo.GuildRoster then C_GuildInfo.GuildRoster() elseif GuildRoster then GuildRoster() end
   local n = GetNumGuildMembers and GetNumGuildMembers() or 0
+  if not GetGuildRosterInfo then return nil end
   for i=1,n do
     local memberName, _, rankIndex = GetGuildRosterInfo(i)
-    if memberName and self:Norm(memberName) == short then return rankIndex end
+    if self:GuildIdentity(memberName) == identity then return rankIndex end
   end
   return nil
 end
 
 function A:IsOfficer(name)
-  name = name or UnitName("player")
-  local idx = self:GuildRankIndex(name)
-  if idx == nil and self:Norm(name) == self:Norm(UnitName("player")) then
-    local _,_,myIdx = GetGuildInfo("player")
-    idx = myIdx
+  if not IsInGuild() then return false, "not in guild" end
+  local isSelf = name == nil or self:IsLocalGuildPlayer(name)
+  local idx
+  if isSelf then
+    local guild, rankName
+    guild, rankName, idx = GetGuildInfo("player")
+    if not guild then return false, "guild info unavailable" end
+  else
+    idx = self:GuildRankIndex(name)
   end
-  return idx ~= nil and idx <= (tonumber(self.db.settings.officerRankMax) or 1)
+  if idx == 0 then return true, "Guild Master" end
+  -- The self-only API must never authorize a remote sender.
+  if isSelf and C_GuildInfo and type(C_GuildInfo.IsGuildOfficer) == "function" then
+    local ok, officer = pcall(C_GuildInfo.IsGuildOfficer)
+    return ok and officer == true, "Blizzard self officer API"
+  end
+  if type(idx) ~= "number" or idx < 0 or idx ~= math.floor(idx) then
+    return false, "guild rank unavailable"
+  end
+  if C_GuildInfo and type(C_GuildInfo.GuildControlGetRankFlags) == "function" then
+    -- Roster rankIndex is zero-based; the permission API rankOrder is one-based.
+    local ok, flags = pcall(C_GuildInfo.GuildControlGetRankFlags, idx + 1)
+    if not ok or type(flags) ~= "table" then return false, "guild permissions unavailable" end
+    -- Blizzard GUILDCONTROL_OPTION3/4: officer chat; OPTION11/12: officer notes.
+    return flags[3] == true or flags[4] == true or flags[11] == true or flags[12] == true,
+      "guild rank permissions"
+  end
+  -- Only clients lacking the relevant permission API use the saved legacy threshold.
+  local settings = self.db and self.db.settings or {}
+  return idx <= (tonumber(settings.officerRankMax) or 1), "legacy rank fallback"
 end
 
 function A:IsAdmin(name)
-  name = name or UnitName("player")
-  local idx = self:GuildRankIndex(name)
-  if idx == nil and self:Norm(name) == self:Norm(UnitName("player")) then
-    local _,_,myIdx = GetGuildInfo("player")
-    idx = myIdx
+  if not IsInGuild() then return false end
+  local idx
+  if name == nil or self:IsLocalGuildPlayer(name) then
+    local guild, rankName
+    guild, rankName, idx = GetGuildInfo("player")
+    if not guild then return false end
+  else
+    idx = self:GuildRankIndex(name)
   end
   return idx == 0
 end
@@ -237,6 +285,11 @@ SlashCmdList.GDKPCREDIT = function(msg)
   msg = string.lower(msg or "")
   if msg == "sync" then
     A:RequestSync()
+  elseif msg == "officer" then
+    local guild, rank, idx = GetGuildInfo("player")
+    local officer, source = A:IsOfficer()
+    A:Print("Guild: "..tostring(guild).."; rank: "..tostring(rank).." ("..tostring(idx)..
+      "); officer: "..tostring(officer).."; check: "..source)
   elseif msg == "version" then
     A:Print("v"..A.VERSION.." data version "..tostring(A.db.version or 0))
   else

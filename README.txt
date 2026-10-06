@@ -1,4 +1,4 @@
-GDKP Credit — v0.1.4 Beta
+GDKP Credit — v0.1.5 Beta
 =========================
 
 GDKP Credit adds a persistent DKP and gold-backed guild-credit layer on top of a normal GDKP raid system.
@@ -34,7 +34,12 @@ A player who passes the world-buff check and later dies will keep that pass.
 
 OFFICER / MEMBER SYNC
 - Members are read-only.
-- Guild rank 0 and 1 are treated as officer/admin by default.
+- Guild Master is always an officer; admin access remains Guild Master only.
+- The local player uses Blizzard's IsGuildOfficer API when available.
+- Other guild members use their rank's officer-chat or officer-note permissions.
+- Rank 0/1 (or saved officerRankMax) is a fallback only when permission APIs are absent.
+- Unknown senders and mismatched realms cannot authorize incoming officer updates.
+- After /reload, run /gdkpc officer to print your guild, rank, officer status, and check source.
 - Officers hold the authoritative data and broadcast data-version changes.
 - Members request and cache a full snapshot through Blizzard addon messages.
 - Offline members retain their last synchronized data.
