@@ -1,0 +1,22 @@
+GDKP Credit Changelog
+=====================
+
+0.1.0-beta
+----------
+- First public beta under the GDKP Credit name.
+- Persistent person-based DKP balances.
+- Dynamic Gold/DKP based on usable treasury and outstanding DKP.
+- Guild Credit rounded down to whole gold.
+- Manual raid-start and raid-end workflow.
+- Manual World Buff + Consume readiness check.
+- Default thresholds: 3+ world buffs and 2+ tracked consumes.
+- Upgrade-only readiness rechecks: a prior pass cannot be lost after death or buff loss.
+- Full-attendance tracking worth 4 DKP.
+- World Buff and Consume checks worth 3 DKP each.
+- 200 DKP cap.
+- GDKP pot and 10% guild-cut tracking.
+- Character-to-player mapping and alias support.
+- Officer/member synchronization through WoW addon messages.
+- Member DKP, Gold/DKP, Guild Credit, raid status, and history views.
+- Full snapshot and raid export tools.
+- Automatic migration from the original GPCDKP beta SavedVariables.

@@ -1,0 +1,6 @@
+GDKP Credit
+Copyright (c) 2026 Tland. All rights reserved.
+
+Permission is granted to download and use this addon for personal or guild use through authorized distribution channels.
+
+Redistribution, repackaging, modification, sale, sublicensing, or creation/distribution of derivative versions is not permitted without prior written permission from the copyright holder.
