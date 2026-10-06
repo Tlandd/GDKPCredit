@@ -33,42 +33,44 @@ end
 
 function A:CurrentRoster()
   local roster = {}
-  if IsInRaid() then
-    for i=1,GetNumGroupMembers() do
-      local unit = "raid"..i
-      if UnitExists(unit) then
-        local char = self:ShortName(UnitName(unit))
-        if char and char ~= "" then roster[char] = unit end
-      end
-    end
-  elseif IsInGroup() then
-    roster[self:ShortName(UnitName("player"))] = "player"
-    for i=1,GetNumSubgroupMembers() do
-      local unit = "party"..i
-      if UnitExists(unit) then roster[self:ShortName(UnitName(unit))] = unit end
-    end
-  else
-    roster[self:ShortName(UnitName("player"))] = "player"
+  local members, ready = self:GuildTrackingRoster()
+  local function add(unit)
+    if not UnitExists(unit) then return end
+    local character = self:TrackingCharacter(unit)
+    if character and self:IsTrackedCharacter(character, members) then roster[character] = unit end
   end
-  return roster
+  if IsInRaid() then
+    for i=1,GetNumGroupMembers() do add("raid"..i) end
+  elseif IsInGroup() then
+    add("player")
+    for i=1,GetNumSubgroupMembers() do add("party"..i) end
+  else add("player") end
+  return roster, ready
 end
 
-function A:StartRaid()
-  if not self:IsOfficer() then self:Print("Officer permission required.") return end
-  if self.db.activeRaid then self:Print("A raid is already active.") return end
-  local instance = GetInstanceInfo() or "Raid"
+function A:StartRaid(raidType)
+  if not self:IsOfficer() then return false, "Only the designated ledger officer can edit guild data." end
+  if self.db.activeRaid then return false, "A raid is already active." end
+  local template = self:ClassicRaid(raidType)
+  if not template then return false, "Choose a Classic raid before starting." end
+  local roster, ready = self:CurrentRoster()
+  if ready == false then return false, "Guild roster is loading. Try again in a moment." end
+  if not next(roster) then return false, "No eligible guild members or exceptions are in the group." end
+  local rules, err = self:ValidateRaidRules(self:GetRaidProfile(raidType))
+  if not rules then return false, err end
   local r = {
     id = tostring((GetServerTime and GetServerTime()) or time()),
-    name = instance ~= "" and instance or "Raid",
+    name = template.name,
+    raidType = raidType,
+    rules = rules,
     start = (GetServerTime and GetServerTime()) or time(),
     players = {},
     locked = false,
     grossPot = 0,
     guildCut = 0,
   }
-  local roster = self:CurrentRoster()
   for char,_ in pairs(roster) do
-    local player = self:GetPlayerForCharacter(char) or char
+    local player = self:TrackingPlayer(char)
     if player ~= "Non Guild" then
       self:EnsurePlayer(player, char)
       r.players[player] = {
@@ -87,15 +89,17 @@ function A:StartRaid()
   self:AddHistory("RAID", "", 0, "Started "..r.name)
   self:MarkChanged()
   self:Print("Raid started: "..r.name)
+  return true
 end
 
 function A:OnRosterUpdate()
   local r = self.db and self.db.activeRaid
-  if not r or r.ended then return end
-  local roster = self:CurrentRoster()
+  if not r or r.ended or not self:IsOfficer() then return end
+  local roster, ready = self:CurrentRoster()
+  if ready == false then return end
   local presentPlayers = {}
   for char,_ in pairs(roster) do
-    local player = self:GetPlayerForCharacter(char) or char
+    local player = self:TrackingPlayer(char)
     if player ~= "Non Guild" then
       presentPlayers[player] = char
       if not r.players[player] then
@@ -116,15 +120,17 @@ function A:OnRosterUpdate()
 end
 
 function A:RunReadinessCheck(targetPlayer)
-  if not self:IsOfficer() then self:Print("Officer permission required.") return end
+  if not self:IsOfficer() then self:Print("Only the designated ledger officer can edit guild data.") return end
   local r = self.db.activeRaid
   if not r then self:Print("Start a raid first.") return end
   if r.locked then self:Print("Raid check is locked.") return end
 
-  local roster = self:CurrentRoster()
+  local roster, ready = self:CurrentRoster()
+  if ready == false then self:Print("Guild roster is loading. Try the check again shortly.") return end
+  local rules = self:GetRaidRules(r)
   local checked = 0
   for char,unit in pairs(roster) do
-    local player = self:GetPlayerForCharacter(char) or char
+    local player = self:TrackingPlayer(char)
     if player ~= "Non Guild" and (not targetPlayer or player == targetPlayer) then
       self:EnsurePlayer(player, char)
       local e = r.players[player]
@@ -136,8 +142,8 @@ function A:RunReadinessCheck(targetPlayer)
       e.wbCount = math.max(e.wbCount or 0, wbCount)
       e.consumeCount = math.max(e.consumeCount or 0, conCount)
       -- Upgrade only: once a player passes a criterion, later death/rechecks cannot remove it.
-      if wbCount >= (self.db.settings.wbThreshold or 3) then e.wb = true end
-      if conCount >= (self.db.settings.consumeThreshold or 2) then e.consumes = true end
+      if wbCount >= (rules.wbThreshold or 3) then e.wb = true end
+      if conCount >= (rules.consumeThreshold or 2) then e.consumes = true end
       checked = checked + 1
     end
   end
@@ -150,6 +156,7 @@ function A:SetRaidPass(player, criterion)
   local r = self.db.activeRaid
   if not r or not r.players[player] then return end
   local e = r.players[player]
+  if not self:IsTrackedCharacter(e.char) then self:Print("This character is not eligible for guild tracking.") return end
   if criterion == "wb" then e.wb = true
   elseif criterion == "consumes" then e.consumes = true
   elseif criterion == "attendance" then e.attendance = true; e.attendanceOverride = true end
@@ -170,40 +177,28 @@ function A:UnlockRaidCheck()
 end
 
 function A:EndRaid(grossPot)
-  if not self:IsOfficer() then self:Print("Officer permission required.") return end
+  if not self:IsOfficer() then self:Print("Only the designated ledger officer can edit guild data.") return end
   local r = self.db.activeRaid
   if not r then self:Print("No active raid.") return end
 
-  grossPot = tonumber(grossPot) or 0
-  r.grossPot = math.max(0, grossPot)
-  r.guildCut = math.floor(r.grossPot * (tonumber(self.db.settings.guildCut) or 0.10))
+  if self.ApplyDKPDecay then self:ApplyDKPDecay() end
+  local preview, err = self:RaidAwardPreview(grossPot)
+  if not preview then self:Print(err) return end
+  r.grossPot = preview.grossPot
+  r.guildCut = preview.guildCut
   self.db.treasury = (tonumber(self.db.treasury) or 0) + r.guildCut
-
-  local roster = self:CurrentRoster()
-  local presentPlayers = {}
-  for char,_ in pairs(roster) do
-    local p = self:GetPlayerForCharacter(char) or char
-    presentPlayers[p] = true
-  end
 
   local awarded = 0
   for player,e in pairs(r.players) do
-    if e.attendanceOverride then
-      e.attendance = true
-    else
-      e.attendance = e.presentStart and not e.attendanceBroken and presentPlayers[player] == true
-    end
-    local dkp = 0
-    if e.attendance then dkp = dkp + (self.db.settings.attendanceDKP or 4) end
-    if e.wb then dkp = dkp + (self.db.settings.wbDKP or 3) end
-    if e.consumes then dkp = dkp + (self.db.settings.consumeDKP or 3) end
-    e.dkpAwarded = dkp
-    if dkp > 0 and player ~= "Non Guild" then
+    local award = preview.players[player]
+    e.attendance = award.attendance
+    e.dkpAwarded = award.actual
+    if award.actual > 0 and player ~= "Non Guild" then
       local p = self:EnsurePlayer(player, e.char)
-      local cap = tonumber(self.db.settings.dkpCap) or 200
-      p.dkp = math.min(cap, (tonumber(p.dkp) or 0) + dkp)
-      awarded = awarded + dkp
-      self:AddHistory("RAID_DKP", player, dkp, r.name)
+      p.dkp = award.after
+      if self.RecordDKPGain then self:RecordDKPGain(player,award.actual) end
+      awarded = awarded + award.actual
+      self:AddHistory("RAID_DKP", player, award.actual, r.name)
     end
   end
 
@@ -213,6 +208,7 @@ function A:EndRaid(grossPot)
   self.db.activeRaid = nil
   self:AddHistory("RAID", "", awarded, "Ended "..r.name.."; guild cut "..r.guildCut.."g")
   self:MarkChanged()
+  if self.ProcessAutomaticAccountLinks then self:ProcessAutomaticAccountLinks() end
   self:Print("Raid ended. Awarded "..awarded.." total DKP; treasury +"..r.guildCut.."g.")
 end
 

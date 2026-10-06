@@ -1,5 +1,87 @@
+0.2.0-rc1
+- GM chooses one eligible ledger officer; other clients cannot perform concurrent independent balance edits.
+- Isolate balances, treasury, history, raids and settings per guild; preserve the original saved ledger during migration.
+- Bind snapshots to guild identity and guard delayed transfers against guild or permission changes.
+- Add transfer bounds, consistent chunk validation and stale transfer cleanup.
+- Release candidate: live multi-client acceptance testing remains required.
+
+0.1.17-beta
+- Clarify Admin fields, action labels, gold calculations, manual links, backups and guild-rule controls.
+- Add DKP change examples and distinguish guest tracking from account linking and administrator permissions.
+
+0.1.16-beta
+- Guild Master can choose Blizzard officers, Remove Member permission, or named guild ranks for addon administration.
+- Permission policies are guild scoped and accepted only directly from the current Guild Master.
+
 GDKP Credit Changelog
 =====================
+
+0.1.15-beta (development; unreleased)
+------------------------------------
+- Add guild-configurable inactivity decay with adjustable grace period, deduction interval, and flat DKP amount.
+- Record actual positive gains per shared player profile and reset the inactivity clock.
+- Apply scheduled/catch-up deductions through officers with synchronized progress and history records.
+- Preserve balances at zero and avoid retroactive decay when enabling or changing rules.
+
+0.1.14-beta (development; unreleased)
+------------------------------------
+- Add member-chosen player display names without renaming ledger keys or character identities.
+- Authenticate name updates with the account code and linked message sender.
+- Synchronize names and support them in guild/raid/history displays and searches.
+
+0.1.13-beta (development; unreleased)
+------------------------------------
+- Remove manual submission and member-side synchronization buttons.
+- Explain automatic linking and synchronization in My Player Profile.
+
+0.1.12-beta (development; unreleased)
+------------------------------------
+- Automatically register first characters and link zero-balance alts with a matching private account code.
+- Keep codes out of guild broadcasts and member snapshots; share them only with verified officers.
+- Retain ownership review for conflicting links, balance merges, and code recovery.
+- Defer automatic links during active raids and show Linked status in the member profile.
+
+0.1.11-beta (development; unreleased)
+------------------------------------
+- Add My Player Profile under My DKP for member-managed preferred main selection.
+- Discover characters per account/guild, submit current-character requests, and show synchronized approval status.
+- Keep member preferences separate from officer-approved links and balances.
+
+0.1.10-beta (development; unreleased)
+------------------------------------
+- Submit account-wide character link requests automatically on login.
+- Add paged officer approval, bulk approval of new zero-balance accounts, and guild roster import.
+- Review existing-profile links and explicitly confirm balance merges before modifying the ledger.
+- Synchronize approved account groups without trusting account claims as officer permissions.
+
+0.1.9-beta (development; unreleased)
+------------------------------------
+- Replace two fixed exceptions with a general Additional Members list for public guild use.
+- Add searchable, paged member management with individual add/remove controls.
+- Preserve independent lists per guild and migrate existing entries automatically.
+- Synchronize every additional member while retaining legacy snapshot read support.
+
+0.1.8-beta (development; unreleased)
+------------------------------------
+- Restrict raid tracking and awards to verified guild members and two officer-managed exceptions.
+- Preserve realm identities for exceptions and keep officer authorization separate.
+- Sync guild-scoped exceptions and pause checks/awards while the guild roster loads.
+- Preserve existing balances and history while excluding ineligible active-raid entries.
+
+0.1.7-beta (development; unreleased)
+------------------------------------
+- Add officer-editable award profiles for all seven Classic Era raids.
+- Choose the raid and preview its rules before starting.
+- Pin award and readiness settings to each raid at start; later edits affect future raids.
+- Synchronize profiles and active raid rules with strict numeric validation.
+
+0.1.6-beta (development; unreleased)
+------------------------------------
+- Dark/gold interface, dashboard cards, and remembered window position.
+- Search and sort guild balances; search and paginate retained history.
+- Search raid rosters, filter missing readiness, and show raid-wide pass counts.
+- Disable unavailable raid actions and preview awards before confirming raid completion.
+- Reject invalid pots and record actual DKP added after caps in history and exports.
 
 0.1.5-beta (development; unreleased)
 ------------------------------------

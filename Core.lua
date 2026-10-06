@@ -3,8 +3,8 @@ GDKPCredit = GDKPCredit or {}
 local A = GDKPCredit
 
 A.PREFIX = "GDKPCredit"
-A.VERSION = "0.1.5-beta"
-A.TABS = {"My DKP", "Guild DKP", "Raid", "History", "Admin"}
+A.VERSION = "0.2.0-rc1"
+A.TABS = {"My DKP", "Guild DKP", "Raid", "History", "Admin", "Raid Settings"}
 
 local function deepcopy(src)
   if type(src) ~= "table" then return src end
@@ -46,6 +46,8 @@ function A:InitDB()
   GDKPCreditDB = GDKPCreditDB or {}
   GDKPCreditCharDB = GDKPCreditCharDB or {}
   self.db = GDKPCreditDB
+  if self.activeLedgerKey and GDKPCreditDB.guildLedgers then self.db=GDKPCreditDB.guildLedgers[self.activeLedgerKey] end
+  if self.ActivateGuildLedger then self:ActivateGuildLedger() end
   self.charDB = GDKPCreditCharDB
 
   if not self.db.initialized then
@@ -85,6 +87,10 @@ function A:InitDB()
   if s.officerRankMax == nil then s.officerRankMax = 1 end
   if s.guildCut == nil then s.guildCut = 0.10 end
   if s.dkpCap == nil then s.dkpCap = 200 end
+  if self.InitAccountLinks then self:InitAccountLinks() end
+  if self.InitAdditionalMembers then self:InitAdditionalMembers() end
+  if self.InitRaidProfiles then self:InitRaidProfiles() end
+  if self.activeLedgerKey then GDKPCreditDB.localAccount=self.db.localAccount end
 end
 
 function A:GetPlayerForCharacter(character)
@@ -159,14 +165,18 @@ function A:AddHistory(kind, player, amount, note)
 end
 
 function A:AdjustDKP(player, delta, note)
-  if not self:IsOfficer() then return false, "Officer permission required." end
+  if not self:IsOfficer() then return false, "Only the designated ledger officer can edit guild data." end
+  if self.ApplyDKPDecay then self:ApplyDKPDecay() end
   local p = self.db.players[player]
   if not p then return false, "Unknown player." end
   delta = tonumber(delta)
-  if not delta then return false, "Invalid amount." end
+  if not delta or delta~=delta or delta==math.huge or delta==-math.huge then return false, "Invalid amount." end
   local cap = tonumber(self.db.settings.dkpCap) or 200
-  p.dkp = math.max(0, math.min(cap, (tonumber(p.dkp) or 0) + delta))
-  self:AddHistory("ADJUST", player, delta, note or "Manual adjustment")
+  local before=tonumber(p.dkp) or 0
+  p.dkp = math.max(0, math.min(cap, before + delta))
+  local actual=p.dkp-before
+  if self.RecordDKPGain then self:RecordDKPGain(player,actual) end
+  self:AddHistory("ADJUST", player, actual, note or "Manual adjustment")
   self:MarkChanged()
   return true
 end
@@ -269,12 +279,26 @@ frame:SetScript("OnEvent", function(_, event, ...)
     if addon == ADDON_NAME then A:InitDB() end
   elseif event == "PLAYER_LOGIN" then
     if not A.db then A:InitDB() end
+    if A.ActivateGuildLedger and A:ActivateGuildLedger() then A:InitDB() end
     if A.InitComm then A:InitComm() end
+    if A.SendRaw then C_Timer.After(3,function() A:SendRaw("PERMQ","GUILD"); if A.SendAdminPolicy then A:SendAdminPolicy() end end) end
     if A.InitUI then A:InitUI() end
-    if A.RequestSync then C_Timer.After(2, function() A:RequestSync() end) end
+    if A.StartDecayTimer then A:StartDecayTimer() end
+    if A.RequestSync then C_Timer.After(2, function() A:RequestSync(); if A.AnnounceAccountCharacter then A:AnnounceAccountCharacter() end end) end
   elseif event == "GROUP_ROSTER_UPDATE" then
     if A.OnRosterUpdate then A:OnRosterUpdate() end
   elseif event == "GUILD_ROSTER_UPDATE" then
+    if A.ActivateGuildLedger and A:ActivateGuildLedger() then
+      A:InitDB(); if A.RequestSync then A:RequestSync() end
+      if A.SendRaw then A:SendRaw("PERMQ","GUILD") end
+    end
+    if A.AnnounceAccountCharacter then
+      local now=(GetServerTime and GetServerTime()) or time()
+      if not A.lastAccountAnnouncement or now-A.lastAccountAnnouncement>=60 then
+        A.lastAccountAnnouncement=now; A:AnnounceAccountCharacter()
+      end
+    end
+    if A.OnRosterUpdate then A:OnRosterUpdate() end
     if A.RefreshUI then A:RefreshUI() end
   end
 end)
