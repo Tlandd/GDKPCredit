@@ -20,3 +20,4 @@ GDKP Credit Changelog
 - Member DKP, Gold/DKP, Guild Credit, raid status, and history views.
 - Full snapshot and raid export tools.
 - Automatic migration from the original GPCDKP beta SavedVariables.
+- Test automated CurseForge packaging.
