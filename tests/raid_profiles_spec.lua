@@ -10,6 +10,7 @@ end
 GDKPCreditDB={initialized=true,version=1,settings={attendanceDKP=4,wbDKP=3,consumeDKP=3,
   wbThreshold=3,consumeThreshold=2,dkpCap=200,guildCut=0.10}}
 A:InitDB()
+A.db.adminPoliciesByGuild={[A:TrackingGuildKey()]={mode="officer",ranks={},revision=0}}
 A.CurrentRoster=function() return {Alpha="raid1"} end
 check("seven Classic raids",#A.CLASSIC_RAIDS,7)
 for _,raid in ipairs(A.CLASSIC_RAIDS) do

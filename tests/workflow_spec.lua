@@ -52,6 +52,7 @@ assert(loadfile("Raid.lua"))()
 assert(loadfile("UI.lua"))()
 local A=GDKPCredit
 A:InitDB()
+A.db.adminPoliciesByGuild={[A:TrackingGuildKey()]={mode="officer",ranks={},revision=0}}
 A.db.players={Alpha={main="Alpha",alts={"Needle"},dkp=195}, Beta={main="Zed",dkp=50},
   Gamma={main="Gamma",dkp=200}, Over={main="Over",dkp=210}}
 A.db.treasury=1000

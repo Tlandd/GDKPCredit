@@ -52,7 +52,7 @@ function A:ValidateTrackingExceptions(names)
 end
 
 function A:SaveTrackingExceptions(names, note)
-  if not self:IsOfficer() then return false, "Only the designated ledger officer can edit guild data." end
+  if not self:IsOfficer() then return false, "Your guild rank does not have addon admin access." end
   local guild = self:TrackingGuildKey()
   if not guild then return false, "Guild information is unavailable." end
   local valid, err = self:ValidateTrackingExceptions(names)

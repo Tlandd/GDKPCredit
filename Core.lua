@@ -3,7 +3,7 @@ GDKPCredit = GDKPCredit or {}
 local A = GDKPCredit
 
 A.PREFIX = "GDKPCredit"
-A.VERSION = "0.2.0-rc1"
+A.VERSION = "0.2.0-rc2"
 A.TABS = {"My DKP", "Guild DKP", "Raid", "History", "Admin", "Raid Settings"}
 
 local function deepcopy(src)
@@ -165,7 +165,7 @@ function A:AddHistory(kind, player, amount, note)
 end
 
 function A:AdjustDKP(player, delta, note)
-  if not self:IsOfficer() then return false, "Only the designated ledger officer can edit guild data." end
+  if not self:IsOfficer() then return false, "Your guild rank does not have addon admin access." end
   if self.ApplyDKPDecay then self:ApplyDKPDecay() end
   local p = self.db.players[player]
   if not p then return false, "Unknown player." end

@@ -1,3 +1,8 @@
+0.2.0-rc2
+- Restore access for all authorized ranks; remove the single ledger officer restriction.
+- Ranks with Remove Member guild permission have addon admin access by default.
+- Guild Master can grant or revoke access through a selected-rank policy.
+
 0.2.0-rc1
 - GM chooses one eligible ledger officer; other clients cannot perform concurrent independent balance edits.
 - Isolate balances, treasury, history, raids and settings per guild; preserve the original saved ledger during migration.

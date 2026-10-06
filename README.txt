@@ -1,4 +1,4 @@
-GDKP Credit â€” 0.2.0-rc1
+GDKP Credit â€” 0.2.0-rc2
 =======================
 Classic Era addon. This release candidate needs the live acceptance checklist before a stable release.
 
@@ -13,10 +13,12 @@ Choose raid-specific awards on Raid Settings.
 Members' characters register and link automatically as they log in with the addon.
 Use Review Character Links for conflicts; manual links do not merge existing balances.
 Add invited outsiders through Non-Guild Members. Guest status never grants admin access.
-Only the Guild Master can open Who Can Manage DKP, choose eligible admin ranks,
-and designate one ledger officer. By default the Guild Master is the ledger officer.
-For an existing guild using an Accountant, choose that character before making new changes.
-Other eligible admins can view the Admin page but its editing controls are disabled.
+By default, ranks with Blizzard's Remove Member (kick) permission have addon admin access.
+All authorized ranks can edit guild settings, change DKP and start raids.
+The Guild Master opens Who Can Manage DKP to grant or revoke access by rank.
+Choose Ranks Below and toggle the ranks, then save. A selected-rank policy overrides
+the default kick permissions. The Guild Master always keeps access.
+There is no designated ledger officer or single-person restriction.
 
 RAIDS
 Choose a Classic raid before starting. Its award rules are fixed for that raid.
@@ -40,12 +42,9 @@ The original pre-split ledger is preserved in SavedVariables; first guild activa
 Guild-scoped snapshots reject other guilds and unscoped older snapshots.
 Permission policy is accepted only directly from the current Guild Master, who must be online to sync it.
 Regular members cannot change guild balances, rules or admin permissions.
-Only the designated ledger officer can change balances, run raids or apply decay.
-Snapshots are accepted only from that officer. This prevents independent officer edits.
-For handover: stop editing, sync the new officer from the old officer, then have the GM
-change the designated character. The old officer must receive the updated policy before
-resuming activity. Do not perform an offline handover: stale disconnected clients cannot
-know a new designation until they receive it. Keep the GM online during initial setup.
+All authorized guild admins can edit data and send authenticated snapshots.
+Coordinate balance changes between admins while live multi-client acceptance is pending:
+the version-based snapshot protocol does not merge concurrent unsynchronized edits.
 
 BACKUP
 Before upgrading, exit WoW and copy WTF/Account/<account>/SavedVariables/GDKPCredit.lua

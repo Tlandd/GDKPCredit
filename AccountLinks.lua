@@ -63,7 +63,7 @@ function A:AccountLinkStatus(request)
 end
 
 function A:ApproveAccountLink(identity, merge)
-  if not self:IsOfficer() then return false,"Only the designated ledger officer can edit guild data." end
+  if not self:IsOfficer() then return false,"Your guild rank does not have addon admin access." end
   if self.db.activeRaid then return false,"Finish the active raid before linking characters." end
   local profiles,pending=self:AccountLinkTables()
   local request=pending and pending[identity]
@@ -123,7 +123,7 @@ function A:ApproveAccountLink(identity, merge)
 end
 
 function A:ApproveNewAccounts()
-  if not self:IsOfficer() then return false,"Only the designated ledger officer can edit guild data." end
+  if not self:IsOfficer() then return false,"Your guild rank does not have addon admin access." end
   if self.db.activeRaid then return false,"Finish the active raid before linking characters." end
   local _,pending=self:AccountLinkTables(); if not pending then return false,"Guild unavailable." end
   local identities={}; for identity in pairs(pending) do identities[#identities+1]=identity end
@@ -140,7 +140,7 @@ function A:ApproveNewAccounts()
 end
 
 function A:ImportGuildPlayers()
-  if not self:IsOfficer() then return false,"Only the designated ledger officer can edit guild data." end
+  if not self:IsOfficer() then return false,"Your guild rank does not have addon admin access." end
   if self.db.activeRaid then return false,"Finish the active raid before importing." end
   local _,ready=self:GuildTrackingRoster(); if not ready then return false,"Guild roster is loading." end
   local added=0

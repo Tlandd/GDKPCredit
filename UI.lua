@@ -59,7 +59,7 @@ function A:CreateExportPopup()
   local edit=CreateFrame("EditBox",nil,sf); edit:SetMultiLine(true); edit:SetFontObject(ChatFontNormal); edit:SetWidth(560); edit:SetAutoFocus(false); edit:SetTextInsets(4,4,4,4); sf:SetScrollChild(edit); f.edit=edit
   local apply=makeButton(f,"Import Snapshot",120,24); apply:SetPoint("BOTTOMLEFT",16,14)
   apply:SetScript("OnClick",function()
-    if not A:IsOfficer() then A:Print("Only the designated ledger officer can edit guild data.") return end
+    if not A:IsOfficer() then A:Print("Your guild rank does not have addon admin access.") return end
     local ok=A:ApplySnapshot(edit:GetText(),UnitName("player"))
     if ok then A:MarkChanged(); A:Print("Snapshot imported.") else A:Print("Snapshot was not newer or was invalid.") end
   end)
@@ -271,7 +271,7 @@ function A:BuildAdminTab()
   local reserve=makeEdit(p,100,24); reserve:SetPoint("LEFT",rLab,"RIGHT",18,0); reserve:SetNumeric(true); p.reserve=reserve
   local save=makeButton(p,"Save Gold",100,24); save:SetPoint("LEFT",reserve,"RIGHT",12,0)
   save:SetScript("OnClick",function()
-    if not A:IsOfficer() then A:Print("Only the designated ledger officer can edit guild data.") return end
+    if not A:IsOfficer() then A:Print("Your guild rank does not have addon admin access.") return end
     A.db.treasury=tonumber(treasury:GetText()) or A.db.treasury
     A.db.reserve=tonumber(reserve:GetText()) or A.db.reserve
     A:AddHistory("TREASURY","",0,"Treasury/reserve updated")
@@ -304,7 +304,7 @@ function A:BuildAdminTab()
   local owner=makeEdit(p,180,24); owner:SetPoint("LEFT",char,"RIGHT",10,0); p.aliasOwner=owner
   local map=makeButton(p,"Link Character",130,24); map:SetPoint("LEFT",owner,"RIGHT",10,0)
   map:SetScript("OnClick",function()
-    if not A:IsOfficer() then A:Print("Only the designated ledger officer can edit guild data.") return end
+    if not A:IsOfficer() then A:Print("Your guild rank does not have addon admin access.") return end
     local c=A:ShortName(char:GetText()); local o=owner:GetText()
     if c=="" or o=="" then return end
     A.db.characterMap[c]=o; A:EnsurePlayer(o,c); A:AddHistory("MAP",o,0,c.." mapped to "..o); A:MarkChanged()
@@ -331,7 +331,7 @@ function A:BuildAdminTab()
   decay:SetScript("OnClick",function() A:ShowDecaySettings() end)
   local accounts=makeButton(p,"Review Character Links",220,30); accounts:SetPoint("TOPLEFT",205,-442)
   accounts:SetScript("OnClick",function() A:ShowAccountLinks() end)
-  p.writerControls={save,apply,map,manage,decay,accounts,sync}
+  p.adminControls={save,apply,map,manage,decay,accounts,sync}
   local memberHelp=makeText(p); memberHelp:SetPoint("TOPLEFT",8,-498); memberHelp:SetWidth(810)
   memberHelp:SetText("Add guests, resolve character links, or set inactivity deductions. Who Can Manage DKP is visible only to the Guild Master. Raid award amounts are on the Raid Settings tab.")
 
@@ -463,16 +463,16 @@ end
 
 function A:RefreshAdminTab()
   local p=self.adminPanel; if not p then return end
-  for _,control in ipairs(p.writerControls or {}) do control:SetEnabled(self:IsOfficer()) end
+  for _,control in ipairs(p.adminControls or {}) do control:SetEnabled(self:IsOfficer()) end
   if not p.treasury:HasFocus() then p.treasury:SetText(fmt(self.db.treasury)) end
   if not p.reserve:HasFocus() then p.reserve:SetText(fmt(self.db.reserve)) end
-  if p.memberCount then p.memberCount:SetText(#self:TrackingExceptions().." additional members | Ledger officer: "..tostring(self.LedgerOfficer and self:LedgerOfficer() or "not selected")) end
+  if p.memberCount then p.memberCount:SetText(#self:TrackingExceptions().." additional members") end
 
 end
 
 function A:RefreshUI()
   if not self.frame then return end
-  if self.statusText then self.statusText:SetText(string.format("%s  |  %.2fg / DKP",self:IsOfficer() and "LEDGER OFFICER" or "MEMBER",self:GoldPerDKP())) end
+  if self.statusText then self.statusText:SetText(string.format("%s  |  %.2fg / DKP",self:IsOfficer() and "GUILD ADMIN" or "MEMBER",self:GoldPerDKP())) end
   if self.adminPanel.adminAccess then self.adminPanel.adminAccess:SetShown(self:IsAdmin()) end
   self:RefreshMyTab(); self:RefreshGuildTab(); self:RefreshRaidTab(); self:RefreshHistoryTab(); self:RefreshAdminTab()
   if self.memberProfileFrame and self.memberProfileFrame:IsShown() then self:RefreshMemberProfile() end
@@ -489,7 +489,7 @@ function A:ToggleUI()
 end
 
 function A:ShowAwardPreview(grossPot)
-  if not self:IsOfficer() then self:Print("Only the designated ledger officer can edit guild data.") return end
+  if not self:IsOfficer() then self:Print("Your guild rank does not have addon admin access.") return end
   if self.ApplyDKPDecay then self:ApplyDKPDecay() end
   local preview,err=self:RaidAwardPreview(grossPot)
   if not preview then self:Print(err) return end
@@ -550,7 +550,7 @@ function A:CreateRaidPicker(parent,onSelect)
 end
 
 function A:ShowStartRaidDialog()
-  if not self:IsOfficer() then self:Print("Only the designated ledger officer can edit guild data.") return end
+  if not self:IsOfficer() then self:Print("Your guild rank does not have addon admin access.") return end
   if self.db.activeRaid then self:Print("A raid is already active.") return end
   if not self.startRaidFrame then
     local f=CreateFrame("Frame","GDKPCreditStartRaidFrame",UIParent,"BackdropTemplate")
@@ -642,7 +642,7 @@ function A:LoadRaidSettingsForm(keepMessage,rules)
 end
 
 function A:ShowAdditionalMembers()
-  if not self:IsOfficer() then self:Print("Only the designated ledger officer can edit guild data.") return end
+  if not self:IsOfficer() then self:Print("Your guild rank does not have addon admin access.") return end
   if not self.membersFrame then
     local f=CreateFrame("Frame","GDKPCreditMembersFrame",UIParent,"BackdropTemplate")
     f:SetSize(680,540); f:SetPoint("CENTER"); f:SetFrameStrata("DIALOG"); f:EnableMouse(true); skin(f)
@@ -706,7 +706,7 @@ function A:RefreshAdditionalMembers()
 end
 
 function A:ShowAccountLinks()
-  if not self:IsOfficer() then self:Print("Only the designated ledger officer can edit guild data.") return end
+  if not self:IsOfficer() then self:Print("Your guild rank does not have addon admin access.") return end
   if not self.accountFrame then
     local f=CreateFrame("Frame","GDKPCreditAccountFrame",UIParent,"BackdropTemplate")
     f:SetSize(860,520); f:SetPoint("CENTER"); f:SetFrameStrata("DIALOG"); f:EnableMouse(true); skin(f)
@@ -842,7 +842,7 @@ function A:RefreshMemberProfile()
 end
 
 function A:ShowDecaySettings()
-  if not self:IsOfficer() then self:Print("Only the designated ledger officer can edit guild data.") return end
+  if not self:IsOfficer() then self:Print("Your guild rank does not have addon admin access.") return end
   if not self.decayFrame then
     local f=CreateFrame("Frame","GDKPCreditDecayFrame",UIParent,"BackdropTemplate")
     f:SetSize(620,400); f:SetPoint("CENTER"); f:SetFrameStrata("DIALOG"); f:EnableMouse(true); skin(f)
@@ -877,7 +877,7 @@ function A:ShowAdminPermissions()
   if not self.permissionsFrame then
     local f=CreateFrame("Frame","GDKPCreditPermissionsFrame",UIParent,"BackdropTemplate")
     self.permissionsFrame=f; table.insert(UISpecialFrames,"GDKPCreditPermissionsFrame")
-    f:SetSize(620,700); f:SetPoint("CENTER"); f:SetFrameStrata("DIALOG"); f:EnableMouse(true); skin(f)
+    f:SetSize(620,620); f:SetPoint("CENTER"); f:SetFrameStrata("DIALOG"); f:EnableMouse(true); skin(f)
     local title=makeText(f,"large"); title:SetPoint("TOPLEFT",20,-20); title:SetText("Guild Admin Permissions")
     f.modes={}
     for i,item in ipairs({{"officer","Blizzard officers"},{"kick","Can remove guild members"},{"ranks","Choose ranks below"}}) do
@@ -888,27 +888,42 @@ function A:ShowAdminPermissions()
     f.rows={}
     for i=1,10 do
       local b=makeButton(f,"",580,28); b:SetPoint("TOPLEFT",20,-108-(i-1)*34)
-      b:SetScript("OnClick",function() if b.rank then f.selected[b.rank]=not f.selected[b.rank]; A:RefreshAdminPermissions() end end)
+      b:SetScript("OnClick",function() if b.rank then f.mode="ranks"; f.selected[b.rank]=not f.selected[b.rank]; A:RefreshAdminPermissions() end end)
       f.rows[i]=b
     end
-    local writerLabel=makeText(f); writerLabel:SetPoint("TOPLEFT",20,-454); writerLabel:SetText("Ledger officer (Character-Realm)")
-    f.writer=makeEdit(f,330,28); f.writer:SetPoint("TOPLEFT",20,-478)
-    local help=makeText(f); help:SetPoint("TOPLEFT",20,-522); help:SetWidth(580)
-    help:SetText("The Guild Master chooses eligible admin ranks and one ledger officer. Only that officer edits guild data, runs raids and applies decay. Choose an officer from an enabled rank. Transfer only after both officers have synced. Policy sync requires the Guild Master online.")
-    f.message=makeText(f); f.message:SetPoint("TOPLEFT",20,-605)
+    local help=makeText(f); help:SetPoint("TOPLEFT",20,-458); help:SetWidth(580)
+    help:SetText("By default, ranks that can remove guild members get admin access. To grant or revoke access, choose ranks below and toggle them. All enabled ranks can edit settings and run raids. The Guild Master always retains access and alone controls these permissions.")
+    f.message=makeText(f); f.message:SetPoint("TOPLEFT",20,-535)
     local save=makeButton(f,"Save Permissions",180,30); save:SetPoint("BOTTOMLEFT",20,20)
-    save:SetScript("OnClick",function() local _,msg=A:SaveAdminPolicy(f.mode,f.selected,f.writer:GetText()); f.message:SetText(msg) end)
+    save:SetScript("OnClick",function() local _,msg=A:SaveAdminPolicy(f.mode,f.selected); f.message:SetText(msg) end)
     local close=makeButton(f,"Close",90,30); close:SetPoint("BOTTOMRIGHT",-20,20); close:SetScript("OnClick",function() f:Hide() end)
   end
   local p=self:PermissionPolicy(); local f=self.permissionsFrame
-  f.writer:SetText(p.writer or self:LedgerOfficer() or ""); f.mode=p.mode; f.selected=self.DeepCopy(p.ranks); f.message:SetText("")
+  f.mode=p.mode; f.selected=self.DeepCopy(p.ranks); f.message:SetText("")
+  if p.mode~="ranks" then
+    for idx=0,9 do
+      local name=self:GuildRankName(idx)
+      if name then
+        local allowed=idx==0
+        local api=C_GuildInfo and C_GuildInfo.GuildControlGetRankFlags
+        if api then
+          local ok,flags=pcall(api,idx+1)
+          if ok and type(flags)=="table" then
+            if p.mode=="kick" then allowed=allowed or flags[8]==true
+            else allowed=allowed or flags[3]==true or flags[4]==true or flags[11]==true or flags[12]==true end
+          end
+        end
+        f.selected[name]=allowed
+      end
+    end
+  end
   self:RefreshAdminPermissions(); f:Show()
 end
 function A:RefreshAdminPermissions()
   local f=self.permissionsFrame; local ranks=self:AvailableAdminRanks()
   for mode,b in pairs(f.modes) do b:SetEnabled(mode~=f.mode) end
   for i,b in ipairs(f.rows) do
-    b.rank=ranks[i]; b:SetShown(b.rank~=nil); b:SetEnabled(f.mode=="ranks")
+    b.rank=ranks[i]; b:SetShown(b.rank~=nil); b:SetEnabled(true)
     if b.rank then b:SetText((f.selected[b.rank] and "[Enabled] " or "[Disabled] ")..b.rank) end
   end
 end

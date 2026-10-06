@@ -25,6 +25,6 @@ function A:ActivateGuildLedger()
   ledger.localAccount=root.localAccount
   self.db=ledger; self.activeLedgerKey=key
   self.strictGuildSnapshots=true
-  self.singleLedgerWriter=true
+
   return true
 end

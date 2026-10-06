@@ -49,7 +49,7 @@ function A:CurrentRoster()
 end
 
 function A:StartRaid(raidType)
-  if not self:IsOfficer() then return false, "Only the designated ledger officer can edit guild data." end
+  if not self:IsOfficer() then return false, "Your guild rank does not have addon admin access." end
   if self.db.activeRaid then return false, "A raid is already active." end
   local template = self:ClassicRaid(raidType)
   if not template then return false, "Choose a Classic raid before starting." end
@@ -120,7 +120,7 @@ function A:OnRosterUpdate()
 end
 
 function A:RunReadinessCheck(targetPlayer)
-  if not self:IsOfficer() then self:Print("Only the designated ledger officer can edit guild data.") return end
+  if not self:IsOfficer() then self:Print("Your guild rank does not have addon admin access.") return end
   local r = self.db.activeRaid
   if not r then self:Print("Start a raid first.") return end
   if r.locked then self:Print("Raid check is locked.") return end
@@ -177,7 +177,7 @@ function A:UnlockRaidCheck()
 end
 
 function A:EndRaid(grossPot)
-  if not self:IsOfficer() then self:Print("Only the designated ledger officer can edit guild data.") return end
+  if not self:IsOfficer() then self:Print("Your guild rank does not have addon admin access.") return end
   local r = self.db.activeRaid
   if not r then self:Print("No active raid.") return end
 

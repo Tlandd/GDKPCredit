@@ -68,7 +68,7 @@ function A:CanEditRaidSettings()
 end
 
 function A:SaveRaidProfile(id, values)
-  if not self:CanEditRaidSettings() then return false, "Only the designated ledger officer can edit guild data." end
+  if not self:CanEditRaidSettings() then return false, "Your guild rank does not have addon admin access." end
   local raid = self:ClassicRaid(id)
   if not raid then return false, "Choose a Classic raid." end
   local rules, err = self:ValidateRaidRules(values)

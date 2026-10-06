@@ -69,12 +69,14 @@ check("invalid sync preserves list",#A:TrackingExceptions(),135)
 check("legacy two-name snapshot accepted",A:ApplySnapshot("META\t"..A.db.version.."\t0\t0\nTRACK\t"..guild.."\tGuest-Realm\tVisitor-Other","Alpha-Realm"),true)
 check("legacy snapshot restores both",#A:TrackingExceptions(),2)
 GetGuildInfo=function() return "Other Guild","Officer",2 end
+A.db.adminPoliciesByGuild[A:TrackingGuildKey()]={mode="officer",ranks={},revision=0}
 check("other guild starts with empty list",#A:TrackingExceptions(),0)
 check("other guild can add its own member",A:AddAdditionalMember("OtherMember"),true)
 GetGuildInfo=function() return "Gnome Pest Control","Accountant",2 end
 check("original guild list preserved",#A:TrackingExceptions(),2)
 check("other guild member excluded",A:IsTrackedCharacter("OtherMember"),false)
 GetGuildInfo=function() return "Other Guild","Officer",2 end
+A.db.adminPoliciesByGuild[A:TrackingGuildKey()]={mode="officer",ranks={},revision=0}
 check("second guild list preserved",A:TrackingExceptions()[1],"OtherMember-Realm")
 check("remove final member",A:RemoveAdditionalMember("OtherMember"),true)
 local emptySnapshot=A:SerializeSnapshot()

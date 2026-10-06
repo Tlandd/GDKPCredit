@@ -23,7 +23,7 @@ function A:ValidateDecaySettings(values)
 end
 
 function A:SaveDecaySettings(values)
-  if not self:IsOfficer() then return false,"Only the designated ledger officer can edit guild data." end
+  if not self:IsOfficer() then return false,"Your guild rank does not have addon admin access." end
   local guild=self:TrackingGuildKey(); if not guild then return false,"Guild information unavailable." end
   local valid,err=self:ValidateDecaySettings(values); if not valid then return false,err end
   local old=self:DecaySettings()
@@ -76,7 +76,7 @@ function A:DecayPlan(now)
 end
 
 function A:ApplyDKPDecay(now)
-  if not self:IsOfficer() then return false,"Only the designated ledger officer can edit guild data." end
+  if not self:IsOfficer() then return false,"Your guild rank does not have addon admin access." end
   local plan=self:DecayPlan(now); local guild=self:TrackingGuildKey()
   if #plan==0 then return true,0 end
   local total=0
