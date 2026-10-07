@@ -3,7 +3,7 @@ GDKPCredit = GDKPCredit or {}
 local A = GDKPCredit
 
 A.PREFIX = "GDKPCredit"
-A.VERSION = "0.2.0-rc2"
+A.VERSION = "0.2.0-rc3"
 A.TABS = {"My DKP", "Guild DKP", "Raid", "History", "Admin", "Raid Settings"}
 
 local function deepcopy(src)
@@ -283,6 +283,7 @@ frame:SetScript("OnEvent", function(_, event, ...)
     if A.InitComm then A:InitComm() end
     if A.SendRaw then C_Timer.After(3,function() A:SendRaw("PERMQ","GUILD"); if A.SendAdminPolicy then A:SendAdminPolicy() end end) end
     if A.InitUI then A:InitUI() end
+    if A.InitMinimapButton then A:InitMinimapButton() end
     if A.StartDecayTimer then A:StartDecayTimer() end
     if A.RequestSync then C_Timer.After(2, function() A:RequestSync(); if A.AnnounceAccountCharacter then A:AnnounceAccountCharacter() end end) end
   elseif event == "GROUP_ROSTER_UPDATE" then
@@ -309,6 +310,8 @@ SlashCmdList.GDKPCREDIT = function(msg)
   msg = string.lower(msg or "")
   if msg == "sync" then
     A:RequestSync()
+  elseif msg == "minimap" then
+    if A.ToggleMinimapButton then A:ToggleMinimapButton() end
   elseif msg == "officer" then
     local guild, rank, idx = GetGuildInfo("player")
     local officer, source = A:IsOfficer()

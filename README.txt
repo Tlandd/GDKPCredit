@@ -1,4 +1,4 @@
-GDKP Credit â€” 0.2.0-rc2
+GDKP Credit â€” 0.2.0-rc3
 =======================
 Classic Era addon. This release candidate needs the live acceptance checklist before a stable release.
 
@@ -51,3 +51,7 @@ Before upgrading, exit WoW and copy WTF/Account/<account>/SavedVariables/GDKPCre
 and GDKPCredit.lua.bak if present. These files contain your balances and account-link credentials.
 Admin -> Copy Guild Backup provides a copyable guild snapshot without private account codes.
 For full recovery, use the SavedVariables backup while WoW is closed.
+
+MINIMAP BUTTON
+Click the gold DKP token to open or close the addon. Drag to move it.
+Position and visibility are saved per character. /gdkpc minimap hides or shows it.
