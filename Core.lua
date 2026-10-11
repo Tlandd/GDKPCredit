@@ -3,7 +3,7 @@ GDKPCredit = GDKPCredit or {}
 local A = GDKPCredit
 
 A.PREFIX = "GDKPCredit"
-A.VERSION = "0.2.0-rc3"
+A.VERSION = "0.2.6"
 A.TABS = {"My DKP", "Guild DKP", "Raid", "History", "Admin", "Raid Settings"}
 
 local function deepcopy(src)
@@ -164,15 +164,47 @@ function A:AddHistory(kind, player, amount, note)
   while #h > 250 do table.remove(h) end
 end
 
-function A:AdjustDKP(player, delta, note)
+function A:ResolveAdjustmentPlayer(input)
+  if type(input)~="string" then return nil,"Enter a player or character name." end
+  input=input:match("^%s*(.-)%s*$")
+  if input=="" then return nil,"Enter a player or character name." end
+  local query=string.lower(input); local matches={}
+  local qualified=input:find("-",1,true)~=nil
+  local function characterMatches(character)
+    if type(character)~="string" then return false end
+    if qualified then return self:GuildIdentity(character)==self:GuildIdentity(input) end
+    return string.lower(self:ShortName(character))==query
+  end
+  for key,info in pairs(self.db.players) do
+    local found=string.lower(key)==query or (info.displayName and string.lower(info.displayName)==query) or characterMatches(info.main)
+    for _,alt in ipairs(info.alts or {}) do if characterMatches(alt) then found=true end end
+    if found then matches[key]=true end
+  end
+  for character,key in pairs(self.db.characterMap) do
+    if self.db.players[key] and characterMatches(character) then matches[key]=true end
+  end
+  local resolved
+  for key in pairs(matches) do
+    if resolved then return nil,"Multiple players match that name. Enter a unique main character name (Character-Realm if needed)." end
+    resolved=key
+  end
+  if not resolved then return nil,"Player not found. Enter a name from Guild DKP or a linked character name." end
+  return resolved
+end
+
+function A:AdjustDKP(player, delta, note, exactPlayer, expectedBalance)
   if not self:IsOfficer() then return false, "Your guild rank does not have addon admin access." end
-  if self.ApplyDKPDecay then self:ApplyDKPDecay() end
-  local p = self.db.players[player]
-  if not p then return false, "Unknown player." end
+  local resolved,err
+  if exactPlayer then resolved=self.db.players[player] and player else resolved,err=self:ResolveAdjustmentPlayer(player) end
+  if not resolved then return false,err end
+  player=resolved
+  local p=self.db.players[player]
   delta = tonumber(delta)
   if not delta or delta~=delta or delta==math.huge or delta==-math.huge then return false, "Invalid amount." end
+  if self.ApplyDKPDecay then self:ApplyDKPDecay() end
   local cap = tonumber(self.db.settings.dkpCap) or 200
   local before=tonumber(p.dkp) or 0
+  if expectedBalance~=nil and before~=expectedBalance then return false,"Balance changed. Review the new balance and acknowledge again." end
   p.dkp = math.max(0, math.min(cap, before + delta))
   local actual=p.dkp-before
   if self.RecordDKPGain then self:RecordDKPGain(player,actual) end

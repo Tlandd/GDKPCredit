@@ -1,3 +1,39 @@
+0.2.6
+- Fix blank and partially built tabs caused by an unsupported click handler on History frames.
+- Keep DKP adjustment clicks on Guild DKP buttons only.
+- Preserve all saved balances, gold, history and raid settings.
+
+0.2.5
+- Cancel active raids without awarding DKP or depositing gold; cancellations appear in History.
+- Click a player in Guild DKP to add or remove DKP with a required acknowledgment checkbox, reason and balance preview.
+- Rename the theme label to BART(SLOP), preserving saved selections.
+- Includes the 0.2.4 attendance fix for delayed raid closure.
+
+0.2.4
+- Preserve attendance DKP for eligible members present when the raid starts, even if they leave before End Raid.
+- Late joiners still require an officer attendance override.
+- Align raid attendance indicators and previews with the award calculation.
+- Applies to active raids too; completed raid balances are not retroactively changed.
+
+0.2.3
+- End Raid accepts the actual guild cut in gold, not the full GDKP pot.
+- Treasury receives exactly the entered guild cut, including fractional gold.
+- Guild cut percentage is informational only and does not affect deposits or DKP.
+
+0.2.2
+- DKP adjustments accept displayed player names, main characters and linked alts, ignoring case and surrounding spaces.
+- Reject ambiguous names instead of changing the wrong balance.
+
+0.2.1
+- Move the theme selector to a dedicated bottom-right footer.
+- Theme menu opens upward inside the window.
+- Preserve content space so footer controls do not overlap page actions.
+
+0.2.0-rc4
+- Add Default and BART themes with a per-character dropdown.
+- BART uses the supplied red goblin frame and a generated maximalist fantasy background.
+- Themes switch immediately without changing guild data or permissions.
+
 0.2.0-rc3
 - Add the supplied gold DKP icon as a clickable, draggable minimap button.
 - Save icon position and visibility per character; /gdkpc minimap toggles visibility.

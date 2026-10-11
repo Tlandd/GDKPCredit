@@ -12,6 +12,7 @@ local function skin(frame, r, g, b)
     edgeSize=1, insets={left=1,right=1,top=1,bottom=1}})
   frame:SetBackdropColor(r or 0.055,g or 0.065,b or 0.085,0.98)
   frame:SetBackdropBorderColor(0.24,0.27,0.32,1)
+  if A.RegisterThemeSurface then A:RegisterThemeSurface(frame,r,g,b) end
 end
 
 local function makeButton(parent,text,w,h)
@@ -25,7 +26,7 @@ local function makeButton(parent,text,w,h)
   b:SetText(text)
   skin(b,0.11,0.13,0.17)
   b:SetScript("OnEnter",function(self) self:SetBackdropBorderColor(0.85,0.66,0.30,1) end)
-  b:SetScript("OnLeave",function(self) self:SetBackdropBorderColor(0.24,0.27,0.32,1) end)
+  b:SetScript("OnLeave",function(self) if A.GetTheme and A:GetTheme()=="BART" then self:SetBackdropBorderColor(0.72,0.035,0.13,1) else self:SetBackdropBorderColor(0.24,0.27,0.32,1) end end)
   return b
 end
 
@@ -74,7 +75,7 @@ function A:InitUI()
   if self.frame then return end
   local f=CreateFrame("Frame","GDKPCreditMainFrame",UIParent,"BackdropTemplate")
   self.frame=f
-  f:SetSize(900,650); f:SetPoint("CENTER"); f:SetMovable(true); f:EnableMouse(true); f:RegisterForDrag("LeftButton")
+  f:SetSize(900,680); f:SetPoint("CENTER"); f:SetMovable(true); f:EnableMouse(true); f:RegisterForDrag("LeftButton")
   f:SetClampedToScreen(true)
   f:SetScript("OnDragStart",f.StartMoving)
   f:SetScript("OnDragStop",function(self)
@@ -101,8 +102,24 @@ function A:InitUI()
     b:SetScript("OnClick",function() A:ShowTab(i) end); f.tabs[i]=b
   end
 
-  f.content=CreateFrame("Frame",nil,f); f.content:SetPoint("TOPLEFT",20,-100); f.content:SetPoint("BOTTOMRIGHT",-20,20)
+  f.content=CreateFrame("Frame",nil,f); f.content:SetPoint("TOPLEFT",20,-100); f.content:SetPoint("BOTTOMRIGHT",-20,50)
   self:BuildMyTab(); self:BuildGuildTab(); self:BuildRaidTab(); self:BuildHistoryTab(); self:BuildAdminTab(); self:BuildRaidSettingsTab()
+  if self.SetTheme then
+    f.themeButton=makeButton(f,"Theme: "..self:ThemeDisplayName(),150,26)
+    f.themeButton:SetPoint("BOTTOMRIGHT",-20,10)
+    f.themeMenu=CreateFrame("Frame",nil,f,"BackdropTemplate")
+    local menu=f.themeMenu; menu:SetSize(150,72); menu:SetPoint("BOTTOMRIGHT",f.themeButton,"TOPRIGHT",0,4)
+    menu:SetFrameStrata("DIALOG"); menu:EnableMouse(true); skin(menu); menu:Hide()
+    f.themeOptions={}
+    for i,name in ipairs({"Default","BART"}) do
+      local selected=name
+      local option=makeButton(menu,self:ThemeDisplayName(name),138,26); option:SetPoint("TOPLEFT",6,-6-(i-1)*32)
+      option:SetScript("OnClick",function() A:SetTheme(selected) end); f.themeOptions[name]=option
+    end
+    f.themeButton:SetScript("OnClick",function() menu:SetShown(not menu:IsShown()) end)
+    f:HookScript("OnHide",function() menu:Hide() end)
+    self:ApplyTheme()
+  end
   self:ShowTab(1)
 end
 
@@ -155,9 +172,12 @@ function A:BuildGuildTab()
       local info=A.db.players[self.player]
       GameTooltip:SetOwner(self,"ANCHOR_RIGHT"); GameTooltip:SetText(A:PlayerDisplayName(self.player)); GameTooltip:AddLine("Profile: "..self.player,1,1,1)
       GameTooltip:AddLine("Main: "..(info.main or ""),1,1,1)
-      GameTooltip:AddLine("Alts: "..table.concat(info.alts or {},", "),1,1,1); GameTooltip:Show()
+      GameTooltip:AddLine("Alts: "..table.concat(info.alts or {},", "),1,1,1)
+      if A:IsOfficer() then GameTooltip:AddLine("Click to add or remove DKP",0.93,0.74,0.37) end
+      GameTooltip:Show()
     end)
     row:SetScript("OnLeave",function() GameTooltip:Hide() end)
+    row:SetScript("OnClick",function(self) if self.player and A:IsOfficer() then A:ShowGuildAdjustment(self.player) end end)
     p.rows[i]=row
   end
   p.prev=makeButton(p,"Previous",90,26); p.prev:SetPoint("BOTTOMLEFT",8,8)
@@ -176,11 +196,13 @@ function A:BuildRaidTab()
   local lock=makeButton(p,"Lock Check",90,24); lock:SetPoint("LEFT",check,"RIGHT",8,0); lock:SetScript("OnClick",function() if A.db.activeRaid and A.db.activeRaid.locked then A:UnlockRaidCheck() else A:LockRaidCheck() end end); p.lock=lock
   local export=makeButton(p,"Export Raid",90,24); export:SetPoint("LEFT",lock,"RIGHT",8,0); export:SetScript("OnClick",function() A:ShowExport(A:RaidExportText()) end)
 
-  local potLabel=makeText(p); potLabel:SetPoint("TOPLEFT",8,-102); potLabel:SetText("Gross GDKP Pot:")
+  local potLabel=makeText(p); potLabel:SetPoint("TOPLEFT",8,-102); potLabel:SetText("Guild Cut (gold):")
   local pot=makeEdit(p,110,24); pot:SetPoint("LEFT",potLabel,"RIGHT",10,0); pot:SetNumeric(true); p.pot=pot
   local finish=makeButton(p,"End Raid + Award DKP",160,24); finish:SetPoint("LEFT",pot,"RIGHT",10,0); finish:SetScript("OnClick",function() A:ShowAwardPreview(pot:GetText()) end)
 
-  p.controls={start,check,lock,finish}
+  local cancelRaid=makeButton(p,"Cancel Raid",110,24); cancelRaid:SetPoint("LEFT",finish,"RIGHT",10,0)
+  cancelRaid:SetScript("OnClick",function() A:ShowCancelRaid() end)
+  p.controls={start,check,lock,finish,cancelRaid}
   p.selectionControls={}
   local searchLabel=makeText(p); searchLabel:SetPoint("TOPLEFT",8,-141); searchLabel:SetText("Search raider")
   p.search=makeEdit(p,220,24); p.search:SetPoint("TOPLEFT",114,-132)
@@ -282,7 +304,7 @@ function A:BuildAdminTab()
   goldHelp:SetText("Enter total guild gold and the amount held back. The remaining gold determines the value of each DKP.")
 
   local adjTitle=makeText(p,"large"); adjTitle:SetPoint("TOPLEFT",8,-100); adjTitle:SetText("Add or Remove DKP")
-  local playerLabel=makeText(p); playerLabel:SetPoint("TOPLEFT",8,-127); playerLabel:SetText("Player key (see Guild tooltip)")
+  local playerLabel=makeText(p); playerLabel:SetPoint("TOPLEFT",8,-127); playerLabel:SetText("Player / character name")
   local amountLabel=makeText(p); amountLabel:SetPoint("TOPLEFT",198,-127); amountLabel:SetText("DKP change")
   local reasonLabel=makeText(p); reasonLabel:SetPoint("TOPLEFT",298,-127); reasonLabel:SetText("Reason (shown in history)")
   local player=makeEdit(p,180,24); player:SetPoint("TOPLEFT",8,-147); p.adjustPlayer=player
@@ -295,7 +317,7 @@ function A:BuildAdminTab()
   end)
 
   local adjustHelp=makeText(p); adjustHelp:SetPoint("TOPLEFT",8,-176); adjustHelp:SetWidth(810)
-  adjustHelp:SetText("Use 10 to add DKP or -10 to remove it. Use the player key shown in the Guild row tooltip, not their display name.")
+  adjustHelp:SetText("Use 10 to add DKP or -10 to remove it. Enter the displayed player name, main character, or linked alt.")
 
   local aliasTitle=makeText(p,"large"); aliasTitle:SetPoint("TOPLEFT",8,-210); aliasTitle:SetText("Manual Character Link (Advanced)")
   local charLabel=makeText(p); charLabel:SetPoint("TOPLEFT",8,-237); charLabel:SetText("Character to link")
@@ -366,7 +388,7 @@ function A:RefreshMyTab()
   local r=self.db.activeRaid
   if r and r.players[player] then
     local e=r.players[player]
-    p.raid:SetText((r.name or "Raid").."\nAttendance: "..(e.attendanceOverride and "PASS" or (e.attendanceBroken and "NO" or "TRACKING")).."   World Buffs: "..(e.wb and "PASS" or "NO").." ("..(e.wbCount or 0)..")   Consumes: "..(e.consumes and "PASS" or "NO").." ("..(e.consumeCount or 0)..")")
+    p.raid:SetText((r.name or "Raid").."\nAttendance: "..(self:IsRaidAttendanceEligible(e) and "PASS" or "NO").."   World Buffs: "..(e.wb and "PASS" or "NO").." ("..(e.wbCount or 0)..")   Consumes: "..(e.consumes and "PASS" or "NO").." ("..(e.consumeCount or 0)..")")
   elseif r then p.raid:SetText((r.name or "Raid").." — you are not currently tracked in this raid.")
   else p.raid:SetText("No active raid.") end
 end
@@ -419,7 +441,7 @@ function A:RefreshRaidTab()
     row:SetEnabled(n~=nil); row:SetShown(n~=nil)
     if n then
       local e=r.players[n]
-      local att=e.attendanceOverride and "YES" or (e.attendanceBroken and "NO" or "...")
+      local att=self:IsRaidAttendanceEligible(e) and "YES" or "NO"
       local wb=e.wb and "YES" or "NO"
       local con=e.consumes and "YES" or "NO"
       local d=awardPreview and awardPreview.players[n] and awardPreview.players[n].actual or 0
@@ -428,7 +450,7 @@ function A:RefreshRaidTab()
         cell:SetText(values[j])
         if p.selected==n then cell:SetTextColor(1,0.82,0.42)
         elseif j>=3 and j<=5 then
-          local pass=(j==3 and e.attendanceOverride) or (j==4 and e.wb) or (j==5 and e.consumes)
+          local pass=(j==3 and self:IsRaidAttendanceEligible(e)) or (j==4 and e.wb) or (j==5 and e.consumes)
           if pass then cell:SetTextColor(0.38,0.86,0.61) else cell:SetTextColor(0.88,0.61,0.40) end
         else cell:SetTextColor(0.86,0.89,0.94) end
       end
@@ -488,10 +510,10 @@ function A:ToggleUI()
   if self.frame:IsShown() then self.frame:Hide() else self.frame:Show(); self:RefreshUI() end
 end
 
-function A:ShowAwardPreview(grossPot)
+function A:ShowAwardPreview(guildCutAmount)
   if not self:IsOfficer() then self:Print("Your guild rank does not have addon admin access.") return end
   if self.ApplyDKPDecay then self:ApplyDKPDecay() end
-  local preview,err=self:RaidAwardPreview(grossPot)
+  local preview,err=self:RaidAwardPreview(guildCutAmount)
   if not preview then self:Print(err) return end
   if not self.awardFrame then
     local f=CreateFrame("Frame","GDKPCreditAwardFrame",UIParent,"BackdropTemplate")
@@ -508,7 +530,7 @@ function A:ShowAwardPreview(grossPot)
       if not A.db.activeRaid or A.db.activeRaid.id~=f.raidID or A.db.version~=f.version then
         f:Hide(); A:Print("Raid data changed. Review the awards again before confirming.") return
       end
-      local current=A:RaidAwardPreview(f.grossPot)
+      local current=A:RaidAwardPreview(f.guildCutAmount)
       local changed=not current or current.total~=f.preview.total or current.guildCut~=f.preview.guildCut
       if current then
         for name,award in pairs(current.players) do
@@ -520,13 +542,13 @@ function A:ShowAwardPreview(grossPot)
       if changed then
         f:Hide(); A:Print("Roster or awards changed. Review the awards again before confirming.") return
       end
-      f:Hide(); A:EndRaid(f.grossPot)
+      f:Hide(); A:EndRaid(f.guildCutAmount)
     end)
   end
   local f=self.awardFrame
   f.preview=preview
-  f.raidID=preview.id; f.version=self.db.version; f.grossPot=preview.grossPot
-  f.text:SetText(tostring(preview.name).."\n\nGross pot: "..fmt(preview.grossPot).."g"..
+  f.raidID=preview.id; f.version=self.db.version; f.guildCutAmount=preview.guildCut
+  f.text:SetText(tostring(preview.name).."\n\nGuild cut entered: "..fmt(preview.guildCut).."g"..
     "\nGuild treasury receives: "..fmt(preview.guildCut).."g"..
     "\nDKP added after caps: "..fmt(preview.total).."\nPlayers limited by cap: "..preview.capped..
     "\n\nThis ends the raid and records the awards.")
@@ -586,7 +608,7 @@ function A:RefreshStartRaidDialog()
   f.rulesText:SetText("Attendance: "..rules.attendanceDKP.." DKP"..
     "\nWorld buffs: "..rules.wbDKP.." DKP ("..rules.wbThreshold.." required)"..
     "\nConsumes: "..rules.consumeDKP.." DKP ("..rules.consumeThreshold.." required)"..
-    "\nDKP cap: "..rules.dkpCap.."  |  Guild cut: "..fmt(rules.guildCut*100,true).."%"..
+    "\nDKP cap: "..rules.dkpCap.."  |  Guild cut (reference): "..fmt(rules.guildCut*100,true).."%"..
     "\n\nThese settings are locked in when the raid starts.")
 end
 
@@ -601,9 +623,9 @@ function A:BuildRaidSettingsTab()
     p.selectedRaid=id; A:LoadRaidSettingsForm()
   end)
   p.fields={}
-  local fields={{"attendanceDKP","Full attendance DKP"},{"wbDKP","World buff award DKP"},
+  local fields={{"attendanceDKP","Raid-start attendance DKP"},{"wbDKP","World buff award DKP"},
     {"consumeDKP","Consume award DKP"},{"wbThreshold","World buffs required"},
-    {"consumeThreshold","Consumes required"},{"dkpCap","DKP balance cap"},{"guildCut","Guild cut (%)"}}
+    {"consumeThreshold","Consumes required"},{"dkpCap","DKP balance cap"},{"guildCut","Guild cut (%; reference only)"}}
   for i,field in ipairs(fields) do
     local label=makeText(p); label:SetPoint("TOPLEFT",8,-126-(i-1)*40); label:SetText(field[2])
     local input=makeEdit(p,120,26); input:SetPoint("TOPLEFT",260,-118-(i-1)*40); p.fields[field[1]]=input
@@ -926,4 +948,73 @@ function A:RefreshAdminPermissions()
     b.rank=ranks[i]; b:SetShown(b.rank~=nil); b:SetEnabled(true)
     if b.rank then b:SetText((f.selected[b.rank] and "[Enabled] " or "[Disabled] ")..b.rank) end
   end
+end
+
+function A:ShowCancelRaid()
+  if not self:IsOfficer() then self:Print("Your guild rank does not have addon admin access.") return end
+  if not self.db.activeRaid then self:Print("No active raid.") return end
+  if not self.cancelRaidFrame then
+    local f=CreateFrame("Frame","GDKPCreditCancelRaidFrame",UIParent,"BackdropTemplate")
+    self.cancelRaidFrame=f; f:SetSize(480,230); f:SetPoint("CENTER"); f:SetFrameStrata("DIALOG"); f:EnableMouse(true); skin(f)
+    table.insert(UISpecialFrames,"GDKPCreditCancelRaidFrame")
+    f.text=makeText(f,"large"); f.text:SetPoint("TOPLEFT",20,-25); f.text:SetWidth(440)
+    local back=makeButton(f,"Keep Raid",110,28); back:SetPoint("BOTTOMLEFT",20,20); back:SetScript("OnClick",function() f:Hide() end)
+    f.accept=makeButton(f,"Cancel Raid",140,28); f.accept:SetPoint("BOTTOMRIGHT",-20,20)
+    f.accept:SetScript("OnClick",function()
+      local ok,err=A:CancelRaid(f.raid,f.guild)
+      if ok then f:Hide(); A:Print("Raid cancelled. No DKP or gold awarded.") else A:Print(err); f:Hide() end
+    end)
+  end
+  local f=self.cancelRaidFrame; f.raid=self.db.activeRaid; f.guild=self:TrackingGuildKey()
+  f.text:SetText("Cancel "..(f.raid.name or "Raid").."?\n\nNo DKP will be awarded.\nNo gold will be added.\nThe cancellation will appear in History.")
+  f:Show()
+end
+
+function A:ShowGuildAdjustment(player)
+  if not self:IsOfficer() or not self.db.players[player] then return end
+  if not self.guildAdjustmentFrame then
+    local f=CreateFrame("Frame","GDKPCreditGuildAdjustmentFrame",UIParent,"BackdropTemplate")
+    self.guildAdjustmentFrame=f; f:SetSize(560,370); f:SetPoint("CENTER"); f:SetFrameStrata("DIALOG"); f:EnableMouse(true); skin(f)
+    table.insert(UISpecialFrames,"GDKPCreditGuildAdjustmentFrame")
+    f.title=makeText(f,"large"); f.title:SetPoint("TOPLEFT",20,-20); f.title:SetWidth(520)
+    local label=makeText(f); label:SetPoint("TOPLEFT",20,-70); label:SetText("DKP change (+ to add, - to remove)")
+    f.amount=makeEdit(f,130,26); f.amount:SetPoint("TOPLEFT",365,-62)
+    label=makeText(f); label:SetPoint("TOPLEFT",20,-110); label:SetText("Reason (required; shown in History)")
+    f.reason=makeEdit(f,500,26); f.reason:SetPoint("TOPLEFT",24,-135); f.reason:SetMaxLetters(160)
+    f.preview=makeText(f); f.preview:SetPoint("TOPLEFT",20,-180); f.preview:SetWidth(520)
+    f.ack=CreateFrame("CheckButton",nil,f,"UICheckButtonTemplate"); f.ack:SetSize(26,26); f.ack:SetPoint("TOPLEFT",20,-244)
+    label=makeText(f); label:SetPoint("LEFT",f.ack,"RIGHT",6,0); label:SetWidth(480); label:SetText("I acknowledge that I am changing this player's DKP.")
+    f.accept=makeButton(f,"Accept",110,28); f.accept:SetPoint("BOTTOMRIGHT",-20,20)
+    local cancel=makeButton(f,"Cancel",110,28); cancel:SetPoint("BOTTOMLEFT",20,20); cancel:SetScript("OnClick",function() f:Hide() end)
+    local function refresh(reset)
+      if reset then f.ack:SetChecked(false) end
+      local info=A.db.players[f.player]; local delta=tonumber(f.amount:GetText())
+      local reason=f.reason:GetText():match("^%s*(.-)%s*$")
+      f.valid=info and delta and delta==delta and delta~=math.huge and delta~=-math.huge and delta~=0 and reason~="" and A:IsOfficer() and A:TrackingGuildKey()==f.guild
+      local before=info and (tonumber(info.dkp) or 0) or 0
+      local cap=tonumber(A.db.settings.dkpCap) or 200
+      if before~=f.balance or cap~=f.cap then f.balance=before; f.cap=cap; f.ack:SetChecked(false) end
+      local after=f.valid and math.max(0,math.min(cap,before+delta)) or before
+      f.preview:SetText("Current balance: "..tostring(before).." DKP\nResulting balance: "..tostring(after).." DKP (guild balance limits apply)")
+      f.accept:SetEnabled(f.valid and f.ack:GetChecked() and before==f.balance)
+    end
+    f.refresh=refresh
+    f.amount:SetScript("OnTextChanged",function() refresh(true) end)
+    f.reason:SetScript("OnTextChanged",function() refresh(true) end)
+    f.ack:SetScript("OnClick",function() refresh(false) end)
+    f:SetScript("OnHide",function() f.ack:SetChecked(false); f.accept:SetEnabled(false); f.player=nil end)
+    f.accept:SetScript("OnClick",function()
+      refresh(false)
+      if not f.valid or not f.ack:GetChecked() then return end
+      local info=A.db.players[f.player]
+      if not info or (tonumber(info.dkp) or 0)~=f.balance then
+        f.balance=info and (tonumber(info.dkp) or 0); refresh(true); A:Print("Balance changed. Review and acknowledge again."); return
+      end
+      local ok,err=A:AdjustDKP(f.player,f.amount:GetText(),f.reason:GetText():match("^%s*(.-)%s*$"),true,f.balance)
+      if ok then f:Hide(); A:Print("DKP adjustment recorded.") else f.balance=tonumber(info.dkp) or 0; refresh(true); A:Print(err) end
+    end)
+  end
+  local f=self.guildAdjustmentFrame; f.player=player; f.guild=self:TrackingGuildKey(); f.balance=tonumber(self.db.players[player].dkp) or 0
+  f.title:SetText("Adjust DKP: "..self:PlayerDisplayName(player))
+  f.amount:SetText(""); f.reason:SetText(""); f.refresh(true); f:Show()
 end

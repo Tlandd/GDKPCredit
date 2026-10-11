@@ -41,6 +41,11 @@ function A:HistoryView(query)
   return rows
 end
 
+-- Departure does not revoke attendance; late joiners require an officer override.
+function A:IsRaidAttendanceEligible(entry)
+  return entry and (entry.attendanceOverride == true or entry.presentStart == true) or false
+end
+
 function A:RaidView(query, missingOnly)
   query = string.lower(query or "")
   local rows, summary = {}, {total=0, wb=0, consumes=0, attendance=0}
@@ -52,7 +57,7 @@ function A:RaidView(query, missingOnly)
     summary.total = summary.total + 1
     if entry.wb then summary.wb = summary.wb + 1 end
     if entry.consumes then summary.consumes = summary.consumes + 1 end
-    if entry.attendanceOverride or (entry.presentStart and not entry.attendanceBroken) then
+    if self:IsRaidAttendanceEligible(entry) then
       summary.attendance = summary.attendance + 1
     end
     if (matches(name, query) or matches(self:PlayerDisplayName(name), query) or matches(entry.char, query)) and
@@ -64,24 +69,21 @@ function A:RaidView(query, missingOnly)
 end
 
 -- This preview uses the exact award computation that EndRaid commits.
-function A:RaidAwardPreview(grossPot)
+function A:RaidAwardPreview(guildCutAmount)
   local raid = self.db.activeRaid
   if not raid then return nil, "No active raid." end
-  local pot = tonumber(grossPot)
+  local pot = tonumber(guildCutAmount)
   if not pot or pot < 0 or pot ~= pot or pot == math.huge then
-    return nil, "Enter a valid, non-negative gross pot. Use 0 for a raid without gold."
+    return nil, "Enter a valid, non-negative guild cut in gold. Use 0 if no gold goes to the guild."
   end
   local roster, ready = self:CurrentRoster()
   if ready == false then return nil, "Guild roster is loading. Try again shortly." end
-  local present = {}
-  for character in pairs(roster) do present[self:TrackingPlayer(character)] = true end
   local members = self:GuildTrackingRoster()
   local s = self:GetRaidRules(raid)
-  local preview = {id=raid.id, name=raid.name, grossPot=pot,
-    guildCut=math.floor(pot * (tonumber(s.guildCut) or 0.10)), total=0, capped=0, players={}}
+  local preview = {id=raid.id, name=raid.name, grossPot=0,
+    guildCut=pot, total=0, capped=0, players={}}
   for name, entry in pairs(raid.players or {}) do
-    local attendance = entry.attendanceOverride == true or
-      (entry.presentStart == true and not entry.attendanceBroken and present[name] == true)
+    local attendance = self:IsRaidAttendanceEligible(entry)
     local earned = (attendance and (s.attendanceDKP or 4) or 0) +
       (entry.wb and (s.wbDKP or 3) or 0) + (entry.consumes and (s.consumeDKP or 3) or 0)
     local before = tonumber(self.db.players[name] and self.db.players[name].dkp) or 0

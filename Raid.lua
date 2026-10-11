@@ -97,11 +97,9 @@ function A:OnRosterUpdate()
   if not r or r.ended or not self:IsOfficer() then return end
   local roster, ready = self:CurrentRoster()
   if ready == false then return end
-  local presentPlayers = {}
   for char,_ in pairs(roster) do
     local player = self:TrackingPlayer(char)
     if player ~= "Non Guild" then
-      presentPlayers[player] = char
       if not r.players[player] then
         self:EnsurePlayer(player, char)
         r.players[player] = {
@@ -112,9 +110,6 @@ function A:OnRosterUpdate()
         r.players[player].char = char
       end
     end
-  end
-  for player,e in pairs(r.players) do
-    if e.presentStart and not presentPlayers[player] then e.attendanceBroken = true end
   end
   if self.RefreshUI then self:RefreshUI() end
 end
@@ -176,13 +171,24 @@ function A:UnlockRaidCheck()
   self:MarkChanged()
 end
 
-function A:EndRaid(grossPot)
+function A:CancelRaid(expectedRaid, expectedGuild)
+  if not self:IsOfficer() then return false,"Your guild rank does not have addon admin access." end
+  local r=self.db.activeRaid
+  if not r then return false,"No active raid." end
+  if r~=expectedRaid or self:TrackingGuildKey()~=expectedGuild then return false,"Raid or guild changed. Open Cancel Raid again." end
+  self.db.activeRaid=nil
+  self:AddHistory("RAID_CANCEL","",0,"Cancelled "..(r.name or "Raid").." without DKP or gold awards")
+  self:MarkChanged()
+  return true
+end
+
+function A:EndRaid(guildCutAmount)
   if not self:IsOfficer() then self:Print("Your guild rank does not have addon admin access.") return end
   local r = self.db.activeRaid
   if not r then self:Print("No active raid.") return end
 
   if self.ApplyDKPDecay then self:ApplyDKPDecay() end
-  local preview, err = self:RaidAwardPreview(grossPot)
+  local preview, err = self:RaidAwardPreview(guildCutAmount)
   if not preview then self:Print(err) return end
   r.grossPot = preview.grossPot
   r.guildCut = preview.guildCut

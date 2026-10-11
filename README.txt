@@ -1,6 +1,6 @@
-GDKP Credit â€” 0.2.0-rc3
+GDKP Credit â€” 0.2.6
 =======================
-Classic Era addon. This release candidate needs the live acceptance checklist before a stable release.
+Classic Era addon. Coordinate officer balance changes; simultaneous unsynchronized edits are not merged.
 
 INSTALL
 Extract GDKPCredit into World of Warcraft/_classic_era_/Interface/AddOns/.
@@ -55,3 +55,14 @@ For full recovery, use the SavedVariables backup while WoW is closed.
 MINIMAP BUTTON
 Click the gold DKP token to open or close the addon. Drag to move it.
 Position and visibility are saved per character. /gdkpc minimap hides or shows it.
+
+THEMES
+Use the bottom-right Theme dropdown: Default or BART. The choice is saved per character.
+BART uses an ornate red goblin border and an extravagant fantasy background.
+
+GUILD CUT
+Enter the actual gold going to the guild when ending a raid. Exactly that amount is added to treasury. The guild cut percentage in Raid Settings is a reference only and never calculates or changes deposits or DKP awards.
+
+Attendance: eligible members present at raid start retain attendance credit after leaving the group. Late joiners require Pass Attendance. Applies to active raids too; completed raid awards are unchanged. Members do not need the addon installed.
+
+Guild DKP: authorized admins can click a player to adjust DKP. Enter a signed amount and reason, check the acknowledgment box, and accept. Changes appear in History. Cancel Raid ends tracking without awards or deposits after confirmation. BART is displayed as BART(SLOP); saved selections are preserved.
