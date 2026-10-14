@@ -206,27 +206,75 @@ function A:ApplySnapshot(text, sender)
   return true
 end
 
+-- A single queue bounds total traffic, including concurrent snapshot recipients.
+function A:PumpOutgoing()
+  if self.outgoingPumpScheduled then return end
+  self.outgoingPumpScheduled=true
+  C_Timer.After(0.5,function()
+    A.outgoingPumpScheduled=false
+    local messages=A.outgoingMessages or {}
+    local job=table.remove(messages,1)
+    if not job then
+      local order=A.outgoingSnapshotOrder or {}
+      while #order>0 and not job do
+        local target=table.remove(order,1)
+        local transfer=A.outgoingSnapshots and A.outgoingSnapshots[target]
+        if transfer then
+          local allowed=transfer.guild==A:TrackingGuildKey() and A:IsOfficer() and
+            (not transfer.private or A:IsOfficer(target)) and A:IsTrackedCharacter(target)
+          if allowed then
+            local i=transfer.index
+            local chunk=transfer.data:sub((i-1)*180+1,i*180)
+            job={message=table.concat({"S",transfer.id,tostring(i),tostring(transfer.total),chunk},"|"),channel="WHISPER",target=target,guild=transfer.guild}
+            transfer.index=i+1
+            if i<transfer.total then order[#order+1]=target else A.outgoingSnapshots[target]=nil end
+          else A.outgoingSnapshots[target]=nil end
+        end
+      end
+    end
+    if job and job.guild==A:TrackingGuildKey() and (job.channel~="GUILD" or IsInGuild()) and C_ChatInfo and C_ChatInfo.SendAddonMessage then
+      C_ChatInfo.SendAddonMessage(A.PREFIX,job.message,job.channel,job.target)
+    end
+    if #messages>0 or #(A.outgoingSnapshotOrder or {})>0 then A:PumpOutgoing() end
+  end)
+end
+
 function A:SendRaw(message, channel, target)
   if not C_ChatInfo or not C_ChatInfo.SendAddonMessage then return end
-  C_ChatInfo.SendAddonMessage(self.PREFIX, message, channel or "GUILD", target)
+  if (channel or "GUILD")=="GUILD" and not IsInGuild() then return end
+  if type(message)~="string" or #message>250 then return end
+  self.outgoingMessages=self.outgoingMessages or {}
+  local messages=self.outgoingMessages
+  local kind=message:match("^([^|]+)")
+  -- Coalesce redundant version/query announcements while a packet is waiting.
+  if kind=="V" or kind=="Q" or kind=="PERMQ" then
+    for _,job in ipairs(messages) do
+      if job.message:match("^([^|]+)")==kind and job.channel==(channel or "GUILD") and job.target==target then
+        job.message=message; job.guild=self:TrackingGuildKey(); return
+      end
+    end
+  end
+  if #messages>=200 then return end
+  messages[#messages+1]={message=message,channel=channel or "GUILD",target=target,guild=self:TrackingGuildKey()}
+  self:PumpOutgoing()
 end
 
 function A:SendSnapshot(target)
-  if not target or target=="" or not self:IsOfficer() then return end
-  local guild=self.TrackingGuildKey and self:TrackingGuildKey()
+  if not target or target=="" or not self:IsOfficer() or not self:IsTrackedCharacter(target) then return end
+  local guild=self:TrackingGuildKey(); if not guild then return end
   local private=self:IsOfficer(target)
   local data=self:SerializeSnapshot(private)
-  local max=180
-  local total=math.max(1,math.ceil(#data/max))
-  local id=tostring((GetServerTime and GetServerTime()) or time())..tostring(math.random(100,999))
-  for i=1,total do
-    local chunk=data:sub((i-1)*max+1,i*max)
-    C_Timer.After((i-1)*0.12,function()
-      if guild and guild~=A:TrackingGuildKey() then return end
-      if not A:IsOfficer() or (private and not A:IsOfficer(target)) then return end
-      A:SendRaw(table.concat({"S",id,tostring(i),tostring(total),chunk},"|"),"WHISPER",target)
-    end)
-  end
+  local total=math.max(1,math.ceil(#data/180)); if total>20000 then return end
+  self.outgoingSnapshots=self.outgoingSnapshots or {}
+  self.outgoingSnapshotOrder=self.outgoingSnapshotOrder or {}
+  local existing=self.outgoingSnapshots[target]
+  -- One transfer per recipient. Identical repeated requests do not restart it.
+  if existing and existing.data==data and existing.guild==guild and existing.private==private then return end
+  if not existing then self.outgoingSnapshotOrder[#self.outgoingSnapshotOrder+1]=target end
+  self.outgoingTransferSerial=(self.outgoingTransferSerial or 0)+1
+  local id=tostring((GetServerTime and GetServerTime()) or time()).."-"..tostring(self.outgoingTransferSerial)
+  self.outgoingSnapshots[target]={data=data,total=total,index=1,id=id,guild=guild,private=private}
+  self:PumpOutgoing()
 end
 
 function A:RequestSync(target)
@@ -250,6 +298,7 @@ function A:OnAddonMessage(prefix,msg,channel,sender)
   local now=(GetServerTime and GetServerTime()) or (time and time()) or 0
   for id,transfer in pairs(incoming) do if transfer.expires and transfer.expires<now then incoming[id]=nil end end
   local kind=msg:match("^([^|]+)")
+  if (kind=="GQ" or kind=="GR") and self.ReceiveGuestMessage then self:ReceiveGuestMessage(msg,channel,sender); return end
   if kind=="PERMQ" and self.SendAdminPolicy then self:SendAdminPolicy(sender); return end
   if kind=="PERM" and self.ReceiveAdminPolicy then self:ReceiveAdminPolicy(msg,sender); return end
   if kind=="H" then

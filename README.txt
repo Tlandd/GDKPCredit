@@ -1,4 +1,4 @@
-GDKP Credit â€” 0.2.6
+GDKP Credit â€” 0.2.8
 =======================
 Classic Era addon. Coordinate officer balance changes; simultaneous unsynchronized edits are not merged.
 
@@ -66,3 +66,8 @@ Enter the actual gold going to the guild when ending a raid. Exactly that amount
 Attendance: eligible members present at raid start retain attendance credit after leaving the group. Late joiners require Pass Attendance. Applies to active raids too; completed raid awards are unchanged. Members do not need the addon installed.
 
 Guild DKP: authorized admins can click a player to adjust DKP. Enter a signed amount and reason, check the acknowledgment box, and accept. Changes appear in History. Cancel Raid ends tracking without awards or deposits after confirmation. BART is displayed as BART(SLOP); saved selections are preserved.
+
+ADDITIONAL MEMBER BALANCE VIEW
+Guests: install this version, group with an online addon admin of the guild tracking you, then open My DKP > Guild dropdown > choose the tracking guild. The admin must list your exact Character-Realm under Additional Members. Reports are read-only, show who reported them and their age, and do not merge with your own guild ledger. Both sides need this version; refresh while grouped for current balances.
+
+The My DKP guild dropdown switches personal balance displays only. Guest guilds appear after sharing a group with an online addon admin on this version. Choose a saved guest guild at any time; use Refresh while grouped for current data. Guild management and award actions always remain attached to your actual guild.

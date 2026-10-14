@@ -1,3 +1,16 @@
+0.2.8
+- Add a Guild dropdown to My DKP so Additional Members can choose a guild and see their personal DKP and credit in the normal cards.
+- Discover guest guilds while grouped with an online addon admin; remember reports for later viewing. Refresh updates balances while grouped.
+- Guest reports work outside guild chat, are read-only, and never replace the recipient guild ledger or grant permissions.
+- Requests and reports require current group membership, a matching request nonce and character identity; cached reports show source and age.
+
+0.2.7
+- Pace all addon traffic through a shared queue at a maximum of two messages per second.
+- Send snapshot chunks round-robin instead of creating independent timer bursts per recipient.
+- Coalesce repeated requests and keep only one pending snapshot per recipient.
+- Readiness checks wait five seconds between runs and only announce changed results.
+- Revalidate guild, tracking and officer permissions before snapshot chunks are sent.
+
 0.2.6
 - Fix blank and partially built tabs caused by an unsupported click handler on History frames.
 - Keep DKP adjustment clicks on Guild DKP buttons only.

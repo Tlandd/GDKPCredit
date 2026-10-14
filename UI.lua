@@ -139,6 +139,16 @@ function A:BuildMyTab()
   local raid=makeText(p); raid:SetPoint("TOPLEFT",8,-326); raid:SetWidth(820); raid:SetJustifyH("LEFT"); p.raid=raid
   local profile=makeButton(p,"My Player Profile",170,28); profile:SetPoint("BOTTOMLEFT",8,12)
   profile:SetScript("OnClick",function() A:ShowMemberProfile() end)
+  p.name:SetWidth(490)
+  p.guildPicker=makeButton(p,"Guild",220,26); p.guildPicker:SetPoint("TOPRIGHT",-94,-4)
+  p.guildPicker:SetScript("OnClick",function()
+    if IsInRaid() or IsInGroup() then A:RequestGuestDKP() end
+    A:ToggleGuildPicker()
+  end)
+  p.guildRefresh=makeButton(p,"Refresh",78,26); p.guildRefresh:SetPoint("TOPRIGHT",-8,-4)
+  p.guildRefresh:SetScript("OnClick",function()
+    A:RequestGuestDKP(); if IsInGuild() then A:RequestSync() end
+  end)
 end
 
 function A:BuildGuildTab()
@@ -376,6 +386,21 @@ end
 
 function A:RefreshMyTab()
   local p=self.myPanel; if not p then return end
+  local selected=self.SelectedGuildView and self:SelectedGuildView()
+  if p.guildPicker then p.guildPicker:SetText("Guild: "..selected.label) end
+  if selected and selected.report then
+    local view=selected.report
+    p.name:SetText(view.player)
+    p.lines[1]:SetText(self:TrackingCharacter("player"))
+    p.lines[2]:SetText(fmt(view.dkp))
+    p.lines[3]:SetText(fmt(view.rate,true).."g")
+    p.lines[4]:SetText(fmt(view.credit).."g")
+    p.lines[5]:SetText("Not shared")
+    local age=math.max(0,((GetServerTime and GetServerTime()) or time())-view.received)
+    p.lines[6]:SetText("Updated "..math.floor(age/60).."m ago")
+    p.raid:SetText("Viewing "..view.guild.." as an additional member.\nBalance reported by "..view.sender..".\nRefresh while grouped with an online addon admin for an updated balance.")
+    return
+  end
   local player=self:GetMyPlayer(); local info=self.db.players[player]
   p.name:SetText(self:PlayerDisplayName(player))
   local dkp=info and (info.dkp or 0) or 0
@@ -494,7 +519,11 @@ end
 
 function A:RefreshUI()
   if not self.frame then return end
-  if self.statusText then self.statusText:SetText(string.format("%s  |  %.2fg / DKP",self:IsOfficer() and "GUILD ADMIN" or "MEMBER",self:GoldPerDKP())) end
+  if self.statusText then
+    local selected=self.SelectedGuildView and self:SelectedGuildView()
+    local report=self.currentTab==1 and selected and selected.report
+    self.statusText:SetText(string.format("%s  |  %.2fg / DKP",report and "GUEST VIEW" or (self:IsOfficer() and "GUILD ADMIN" or "MEMBER"),report and report.rate or self:GoldPerDKP()))
+  end
   if self.adminPanel.adminAccess then self.adminPanel.adminAccess:SetShown(self:IsAdmin()) end
   self:RefreshMyTab(); self:RefreshGuildTab(); self:RefreshRaidTab(); self:RefreshHistoryTab(); self:RefreshAdminTab()
   if self.memberProfileFrame and self.memberProfileFrame:IsShown() then self:RefreshMemberProfile() end
@@ -1017,4 +1046,41 @@ function A:ShowGuildAdjustment(player)
   local f=self.guildAdjustmentFrame; f.player=player; f.guild=self:TrackingGuildKey(); f.balance=tonumber(self.db.players[player].dkp) or 0
   f.title:SetText("Adjust DKP: "..self:PlayerDisplayName(player))
   f.amount:SetText(""); f.reason:SetText(""); f.refresh(true); f:Show()
+end
+
+function A:RefreshGuestDKP()
+  if self.myPanel then self:RefreshMyTab() end
+  if self.myPanel and self.myPanel.guildMenu and self.myPanel.guildMenu:IsShown() then self:PopulateGuildPicker() end
+end
+function A:PopulateGuildPicker()
+  local p=self.myPanel; if not p or not p.guildMenu then return end
+  local menu=p.guildMenu; local options=self:GuildViewOptions()
+  for _,button in ipairs(menu.options) do button:Hide() end
+  -- Reuse rows as reports arrive; keep the dropdown within the addon window.
+  menu.page=math.max(1,math.min(menu.page or 1,math.ceil(#options/8)))
+  local first=(menu.page-1)*8+1; local count=math.min(8,#options-first+1)
+  for i=1,count do
+    local option=options[first+i-1]; local key=option.key
+    if not menu.options[i] then
+      local b=makeButton(menu,"",260,26); b:SetPoint("TOPLEFT",6,-6-(i-1)*30); menu.options[i]=b
+    end
+    local b=menu.options[i]; b:SetText(option.label); b:SetScript("OnClick",function() A:SelectGuildView(key) end); b:Show()
+  end
+  menu:SetSize(272,12+count*30+(#options>8 and 32 or 0))
+  if #options>8 then
+    if not menu.next then
+      menu.next=makeButton(menu,"More guilds",260,26); menu.next:SetPoint("BOTTOM",0,6)
+      menu.next:SetScript("OnClick",function() menu.page=menu.page%math.ceil(#A:GuildViewOptions()/8)+1; A:PopulateGuildPicker() end)
+    end
+    menu.next:Show()
+  elseif menu.next then menu.next:Hide() end
+end
+function A:ToggleGuildPicker()
+  local p=self.myPanel
+  if not p.guildMenu then
+    local menu=CreateFrame("Frame",nil,p,"BackdropTemplate"); p.guildMenu=menu; menu.options={}
+    menu:SetPoint("TOPRIGHT",p.guildPicker,"BOTTOMRIGHT",0,-4); menu:SetFrameStrata("DIALOG"); menu:EnableMouse(true); skin(menu); menu:Hide()
+    p:HookScript("OnHide",function() menu:Hide() end)
+  end
+  self:PopulateGuildPicker(); p.guildMenu:SetShown(not p.guildMenu:IsShown())
 end

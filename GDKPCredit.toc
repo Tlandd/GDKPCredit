@@ -2,7 +2,7 @@
 ## Title: GDKP Credit
 ## Notes: A DKP system built inside GDKP, with gold-backed guild credit, raid readiness checks, attendance tracking, and officer controls.
 ## Author: Tland
-## Version: 0.2.6
+## Version: 0.2.8
 ## SavedVariables: GDKPCreditDB, GPCDKP_DB
 ## SavedVariablesPerCharacter: GDKPCreditCharDB, GPCDKP_CharDB
 ## X-Category: Guild, Auction & Economy
@@ -20,6 +20,7 @@ RaidProfiles.lua
 Views.lua
 Raid.lua
 Comm.lua
+GuestView.lua
 UI.lua
 Minimap.lua
 Themes.lua

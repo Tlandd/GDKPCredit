@@ -1,0 +1,49 @@
+import sys
+from pathlib import Path
+sys.path.insert(0,sys.argv[1]) if len(sys.argv)>1 else None
+from lupa.lua51 import LuaRuntime
+r=Path(__file__).resolve().parents[1]
+l=LuaRuntime()
+l.execute('CreateFrame=function() return {RegisterEvent=function() end,SetScript=function() end} end; SlashCmdList={}; GetNormalizedRealmName=function() return "Realm" end; GetRealmName=GetNormalizedRealmName; GetGuildInfo=function() return "Guild" end; IsInGuild=function() return true end; GetNumGuildMembers=function() return 2 end; GetGuildRosterInfo=function(i) return ({"Officer-Realm","Noaddon-Realm"})[i] end; IsInRaid=function() return true end; GetNumGroupMembers=function() return 3 end; UnitExists=function(u) return u=="raid1" or u=="raid2" or u=="raid3" end; UnitFullName=function(u) return ({raid1="Officer",raid2="Noaddon",raid3="Outsider"})[u],"Realm" end; GetServerTime=function() return 1000 end; time=GetServerTime')
+for name in ['Data.lua','Core.lua','Membership.lua','RaidProfiles.lua','Views.lua','Raid.lua']: l.execute((r/name).read_text(encoding="utf-8"))
+for f in r.glob('*.lua'):
+ result=l.eval('loadstring')(f.read_text(encoding='utf-8'))
+ assert not isinstance(result,tuple), (f.name,result)
+l.execute("\nlocal A=GDKPCredit\nlocal n=0\nlocal function check(v,label) assert(v,label); n=n+1 end\nlocal admin=true\nA.IsOfficer=function() return admin end; A.MarkChanged=function() end; A.Print=function() end\nA.db={players={One={main='One',dkp=40,displayName='Same'},Two={main='Two',dkp=20,displayName='Same'}},characterMap={},settings={dkpCap=200},raids={},history={},treasury=100}\nlocal frames={}\nlocal function frame(kind)\n local f={scripts={},text='',shown=false,enabled=true,checked=false}; frames[#frames+1]=f\n setmetatable(f,{__index=function(_,k) if k:match('^[A-Z]') then return function() end end end})\n function f:SetScript(e,fn) assert(e~='OnClick' or kind=='Button' or kind=='CheckButton', 'OnClick unsupported on '..tostring(kind)); self.scripts[e]=fn end\n function f:CreateFontString() return frame() end\n function f:SetText(t) self.text=t; if self.scripts.OnTextChanged then self.scripts.OnTextChanged(self) end end\n function f:GetText() return self.text end\n function f:SetChecked(v) self.checked=v end\n function f:GetChecked() return self.checked end\n function f:SetEnabled(v) self.enabled=v and true or false end\n function f:Show() self.shown=true end\n function f:Hide() self.shown=false; if self.scripts.OnHide then self.scripts.OnHide(self) end end\n return f\nend\nCreateFrame=frame; UIParent=frame(); UISpecialFrames={}\nA.charDB={theme='BART'}\n")
+for name in ['PlayerNames.lua','GuestView.lua','UI.lua','Themes.lua']: l.execute((r/name).read_text(encoding='utf-8'))
+l.execute("\nlocal A=GDKPCredit\n-- Use a fresh count so reported checks are explicit and self-contained.\nlocal n=0\nlocal function check(v,label) assert(v,label); n=n+1 end\ncheck(A:ThemeDisplayName()=='BART(SLOP)' and A:GetTheme()=='BART','saved BART selection remains compatible')\nA:ShowGuildAdjustment('One'); local f=A.guildAdjustmentFrame\ncheck(not f.accept.enabled,'blank dialog disabled')\nf.amount:SetText('-10'); f.reason:SetText('Correction')\ncheck(not f.accept.enabled,'ack required')\nf.accept.scripts.OnClick(); check(A.db.players.One.dkp==40,'unchecked direct click rejected')\nf.ack:SetChecked(true); f.ack.scripts.OnClick(); check(f.accept.enabled,'checked enables accept')\nf.accept.scripts.OnClick(); check(A.db.players.One.dkp==30 and A.db.players.Two.dkp==20,'exact selected key despite duplicate display names')\ncheck(A.db.history[1].kind=='ADJUST' and A.db.history[1].note=='Correction','history reason')\nf.accept.scripts.OnClick(); check(A.db.players.One.dkp==30,'double click guarded')\nA:ShowGuildAdjustment('One');f.amount:SetText('10');f.reason:SetText('Add');f.ack:SetChecked(true);f.ack.scripts.OnClick()\nf.amount:SetText('15');check(not f.ack.checked and not f.accept.enabled,'editing resets acknowledgment')\nf.ack:SetChecked(true);f.ack.scripts.OnClick();A.db.players.One.dkp=35;f.accept.scripts.OnClick()\ncheck(A.db.players.One.dkp==35 and not f.ack.checked,'concurrent balance requires fresh acknowledgment')\nf:Hide();check(A.db.players.One.dkp==35,'cancel unchanged')\nA:ShowGuildAdjustment('One');f.amount:SetText('500');f.reason:SetText('Cap');f.ack:SetChecked(true);f.ack.scripts.OnClick();f.accept.scripts.OnClick()\ncheck(A.db.players.One.dkp==200 and A.db.history[1].amount==165,'cap and actual history delta')\nA:ShowGuildAdjustment('One');f.amount:SetText('-500');f.reason:SetText('Remove');f.ack:SetChecked(true);f.ack.scripts.OnClick();f.accept.scripts.OnClick()\ncheck(A.db.players.One.dkp==0,'zero floor')\nA:ShowGuildAdjustment('One');f.amount:SetText('10');f.reason:SetText('Denied');f.ack:SetChecked(true);f.ack.scripts.OnClick()\nA.IsOfficer=function() return false end;f.accept.scripts.OnClick();check(A.db.players.One.dkp==0,'role revoked blocks accept')\nA.IsOfficer=function() return true end\nlocal raid={id='test',name='Test',players={One={presentStart=true,wb=true,consumes=true}}};A.db.activeRaid=raid\nlocal gold=A.db.treasury;local dkp=A.db.players.One.dkp\ncheck(not A:CancelRaid({},A:TrackingGuildKey()),'stale raid rejected')\ncheck(not A:CancelRaid(raid,'other-guild'),'guild change rejected')\nA.IsOfficer=function() return false end;check(not A:CancelRaid(raid,A:TrackingGuildKey()),'member cancel rejected')\nA.IsOfficer=function() return true end;A:ShowCancelRaid(); local c=A.cancelRaidFrame;c:Hide()\ncheck(A.db.activeRaid==raid,'cancel popup dismissal preserves raid')\nA:ShowCancelRaid(); c.accept.scripts.OnClick()\ncheck(A.db.activeRaid==nil and A.db.treasury==gold and A.db.players.One.dkp==dkp,'cancel zero mutations to money or DKP')\ncheck(A.db.history[1].kind=='RAID_CANCEL' and A.db.history[1].amount==0,'cancel history')\ncheck(not A:CancelRaid(raid,A:TrackingGuildKey()),'duplicate cancellation rejected')\nA:EndRaid(100);check(A.db.treasury==gold and A.db.players.One.dkp==dkp,'cancelled raid cannot award')\nprint('PASS: '..n..' popup, role, history, selected player, cap, cancel and theme checks')\n")
+
+
+l.execute("""local A=GDKPCredit
+A.charDB.theme='Default'; A.frame=nil
+A.ShowTab=function() end
+A:InitUI()
+assert(#A.historyPanel.rows==13,'all history rows built')
+assert(A.adminPanel and A.raidSettingsPanel,'admin and raid settings constructed')
+assert(#A.myPanel.lines==6,'my DKP cards built')
+assert(A.frame.themeButton,'initialization reached theme controls')
+print('PASS: complete UI initialization with WoW frame script restrictions')
+""")
+
+
+l.execute("""local A=GDKPCredit
+UnitFullName=function() return 'Self','Realm' end;UnitName=UnitFullName
+local db=A.db;local ownGuild=A:TrackingGuildKey()
+A.charDB.guestViews={
+ a={guild='Raid Guild',character='self-realm',received=1000,player='Self',dkp=45,rate=12.5,credit=562,sender='Officer-Realm'},
+ b={guild='Raid Guild',character='self-realm',received=900,player='Self',dkp=10,rate=1,credit=10,sender='Other-Realm'},
+ c={guild='Wrong character',character='other-realm',received=1100,dkp=99}}
+local options=A:GuildViewOptions();assert(#options==2,'deduplicate guilds and exclude other characters')
+assert(A:SelectGuildView('guest:Raid Guild'),'select guest guild')
+assert(A.myPanel.lines[2].text=='45','normal DKP card shows selected guild')
+assert(A.myPanel.lines[3].text=='12.50g' and A.myPanel.lines[4].text=='562g','rate and credit follow selected guild')
+assert(A.myPanel.guildPicker.text=='Guild: Raid Guild (guest)','dropdown names selection')
+assert(A.db==db and A:TrackingGuildKey()==ownGuild,'display switch never changes ledger scope')
+assert(not A:SelectGuildView('guest:Not shared'),'cannot select unavailable guild')
+assert(A:SelectGuildView('self'),'return to own guild')
+assert(A.charDB.viewingGuild=='self','own guild selected')
+A.charDB.viewingGuild='guest:Missing';assert(A:SelectedGuildView().key=='self','missing selection safely falls back')
+A:ToggleGuildPicker();assert(#A.myPanel.guildMenu.options==2,'dropdown rows constructed')
+A.myPanel.guildMenu.options[2].scripts.OnClick();assert(A.myPanel.lines[2].text=='45','dropdown row selects correct balance')
+print('PASS: guild dropdown, normal balance cards, newest reports, character filtering and ledger isolation')
+""")

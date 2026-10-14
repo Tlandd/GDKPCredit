@@ -122,8 +122,11 @@ function A:RunReadinessCheck(targetPlayer)
 
   local roster, ready = self:CurrentRoster()
   if ready == false then self:Print("Guild roster is loading. Try the check again shortly.") return end
+  local now=(GetTime and GetTime()) or (GetServerTime and GetServerTime()) or time()
+  if self.lastReadinessCheck and now-self.lastReadinessCheck<5 then self:Print("Please wait a few seconds before checking again.") return end
+  self.lastReadinessCheck=now
   local rules = self:GetRaidRules(r)
-  local checked = 0
+  local checked, changed = 0, false
   for char,unit in pairs(roster) do
     local player = self:TrackingPlayer(char)
     if player ~= "Non Guild" and (not targetPlayer or player == targetPlayer) then
@@ -132,17 +135,20 @@ function A:RunReadinessCheck(targetPlayer)
       if not e then
         e = {char=char,presentStart=false,attendanceBroken=true,attendance=false,wb=false,consumes=false,wbCount=0,consumeCount=0}
         r.players[player] = e
+        changed=true
       end
+      local oldWB,oldCon,oldWBCount,oldConCount=e.wb,e.consumes,e.wbCount,e.consumeCount
       local wbCount, conCount = self:CountTrackedAuras(unit)
       e.wbCount = math.max(e.wbCount or 0, wbCount)
       e.consumeCount = math.max(e.consumeCount or 0, conCount)
       -- Upgrade only: once a player passes a criterion, later death/rechecks cannot remove it.
       if wbCount >= (rules.wbThreshold or 3) then e.wb = true end
       if conCount >= (rules.consumeThreshold or 2) then e.consumes = true end
+      if oldWB~=e.wb or oldCon~=e.consumes or oldWBCount~=e.wbCount or oldConCount~=e.consumeCount then changed=true end
       checked = checked + 1
     end
   end
-  self:MarkChanged()
+  if changed then self:MarkChanged() elseif self.RefreshUI then self:RefreshUI() end
   self:Print("Readiness checked for "..checked.." raid member(s). Existing passes were preserved.")
 end
 
